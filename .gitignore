@@ -1,0 +1,17 @@
+# Eclipse
+.settings/
+Debug/
+.cproject
+.project
+
+# Visual Studio
+.vs/
+out/
+
+# CLion
+cmake-build-debug/
+.idea/
+
+*.zip
+
+*.o
