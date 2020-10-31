@@ -206,8 +206,8 @@ private:
     struct Node;
 
     struct Node {
-        Node *left;
-        Node *right;
+        unique_ptr<Node> left;
+        unique_ptr<Node> right;
         IndexSegment segment;
         Data data;
         BulkOperation postponed_bulk_operation;
@@ -227,8 +227,8 @@ private:
         } else {
             const size_t middle = segment.left + segment.length() / 2;
             return new Node{
-                    .left = Build({segment.left, middle}),
-                    .right = Build({middle, segment.right}),
+                    .left = unique_ptr<Node>(Build({segment.left, middle})),
+                    .right = unique_ptr<Node>(Build({middle, segment.right})),
                     .segment = segment,
             };
         }
@@ -244,14 +244,14 @@ private:
                 return visitor.ProcessFull(node);
             } else {
                 if constexpr (is_void_v<typename Visitor::ResultType>) {
-                    TraverseWithQuery(node->left, query_segment, visitor);
-                    TraverseWithQuery(node->right, query_segment, visitor);
+                    TraverseWithQuery(node->left.get(), query_segment, visitor);
+                    TraverseWithQuery(node->right.get(), query_segment, visitor);
                     return visitor.ProcessPartial(node, query_segment);
                 } else {
                     return visitor.ProcessPartial(
                             node, query_segment,
-                            TraverseWithQuery(node->left, query_segment, visitor),
-                            TraverseWithQuery(node->right, query_segment, visitor)
+                            TraverseWithQuery(node->left.get(), query_segment, visitor),
+                            TraverseWithQuery(node->right.get(), query_segment, visitor)
                     );
                 }
             }
@@ -298,7 +298,7 @@ private:
     };
 
     static void PropagateBulkOperation(Node *node) {
-        for (auto *child_ptr : {node->left, node->right}) {
+        for (auto *child_ptr : {node->left.get(), node->right.get()}) {
             if (child_ptr) {
                 child_ptr->postponed_bulk_operation.CombineWith(node->postponed_bulk_operation);
                 child_ptr->data = node->postponed_bulk_operation.Collapse(child_ptr->data, child_ptr->segment);
@@ -487,20 +487,16 @@ struct PayTaxRequest : ModifyRequest {
 RequestHolder Request::Create(Request::Type type) {
     switch (type) {
         case Request::Type::COMPUTE_INCOME: {
-            ComputeIncomeRequest r;
-            return RequestHolder(&r);
+            return make_unique<ComputeIncomeRequest>();
         }
         case Request::Type::EARN: {
-            AddMoneyRequest<+1> r;
-            return RequestHolder(&r);
+            return make_unique<AddMoneyRequest<+1>>();
         }
         case Request::Type::SPEND: {
-            AddMoneyRequest<-1> r;
-            return RequestHolder(&r);
+            return make_unique<AddMoneyRequest<-1>>();
         }
         case Request::Type::PAY_TAX: {
-            PayTaxRequest r;
-            return RequestHolder(&r);
+            return make_unique<PayTaxRequest>();
         }
         default:
             return nullptr;
