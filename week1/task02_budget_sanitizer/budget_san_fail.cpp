@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <ctime>
@@ -141,45 +140,24 @@ struct BulkTaxApplier {
     }
 };
 
-template<typename Data, typename BulkOperation>
-class SummingSegmentTree;
-
-template<typename Data, typename BulkOperation>
-using SummingSegmentTreeHolder = std::shared_ptr<SummingSegmentTree<Data, BulkOperation>>;
-
-template<typename Data, typename BulkOperation>
-class BaseBulkOperation {
+class BulkLinearUpdater {
 public:
-    using TreeHolder = SummingSegmentTreeHolder<Data, BulkOperation>;
+    BulkLinearUpdater() = default;
 
-    BaseBulkOperation(const TreeHolder &tree) : tree_(tree.get()) {}
+    BulkLinearUpdater(const BulkMoneyAdder &add)
+            : add_(add) {}
 
-private:
-    TreeHolder tree_;
-};
-
-class BulkLinearUpdater : BaseBulkOperation<MoneyState, BulkLinearUpdater> {
-public:
-    BulkLinearUpdater(const TreeHolder &tree = nullptr) : BaseBulkOperation(tree) {}
-
-    BulkLinearUpdater(const TreeHolder &tree, const BulkMoneyAdder &add)
-            : BaseBulkOperation(tree),
-              add_(add) {}
-
-    BulkLinearUpdater(const TreeHolder &tree, const BulkTaxApplier &tax)
-            : BaseBulkOperation(tree),
-              tax_(tax) {}
+    BulkLinearUpdater(const BulkTaxApplier &tax)
+            : tax_(tax) {}
 
     void CombineWith(const BulkLinearUpdater &other) {
-        BaseBulkOperation::operator=(other);
         tax_.factor *= other.tax_.factor;
         add_.delta.spent += other.add_.delta.spent;
         add_.delta.earned = add_.delta.earned * other.tax_.factor + other.add_.delta.earned;
     }
 
     MoneyState Collapse(const MoneyState &origin, IndexSegment segment) const {
-        return MoneyState{origin.earned * tax_.factor, origin.spent}
-               + add_.delta * segment.length();
+        return MoneyState{origin.earned * tax_.factor, origin.spent} + add_.delta * segment.length();
     }
 
 private:
@@ -362,18 +340,9 @@ IndexSegment MakeDateSegment(const Date &date_from, const Date &date_to) {
 }
 
 
-class BudgetManager {
+class BudgetManager : public SummingSegmentTree<MoneyState, BulkLinearUpdater> {
 public:
-    using TreeHolder = SummingSegmentTreeHolder<MoneyState, BulkLinearUpdater>;
-
-    BudgetManager() : tree_(new SummingSegmentTree<MoneyState, BulkLinearUpdater>(DAY_COUNT)) {}
-
-    const TreeHolder &GetTree() const {
-        return tree_;
-    }
-
-private:
-    TreeHolder tree_;
+    BudgetManager() : SummingSegmentTree(DAY_COUNT) {}
 };
 
 
@@ -428,7 +397,7 @@ struct ComputeIncomeRequest : ReadRequest<double> {
     }
 
     double Process(const BudgetManager &manager) const override {
-        return manager.GetTree()->ComputeSum(MakeDateSegment(date_from, date_to)).ComputeIncome();
+        return manager.ComputeSum(MakeDateSegment(date_from, date_to)).ComputeIncome();
     }
 
     Date date_from = START_DATE;
@@ -452,10 +421,7 @@ struct AddMoneyRequest : ModifyRequest {
         const double daily_value = value * 1.0 / date_segment.length();
         const MoneyState daily_change =
                 SIGN == 1 ? MoneyState{.earned = daily_value} : MoneyState{.spent = daily_value};
-        manager.GetTree()->AddBulkOperation(
-                date_segment,
-                BulkLinearUpdater(manager.GetTree(), BulkMoneyAdder{daily_change})
-        );
+        manager.AddBulkOperation(date_segment, BulkMoneyAdder{daily_change});
     }
 
     Date date_from = START_DATE;
@@ -473,10 +439,7 @@ struct PayTaxRequest : ModifyRequest {
     }
 
     void Process(BudgetManager &manager) const override {
-        manager.GetTree()->AddBulkOperation(
-                MakeDateSegment(date_from, date_to),
-                BulkLinearUpdater(manager.GetTree(), BulkTaxApplier::FromPercentage(percentage))
-        );
+        manager.AddBulkOperation(MakeDateSegment(date_from, date_to), BulkTaxApplier::FromPercentage(percentage));
     }
 
     Date date_from = START_DATE;
