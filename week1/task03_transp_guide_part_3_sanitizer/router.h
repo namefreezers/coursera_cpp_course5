@@ -68,20 +68,22 @@ namespace Graph {
 
         while (!vertices_by_weight.empty()) {
             const auto min_vertex_it = vertices_by_weight.begin();
+            std::pair<Weight, VertexId> current_processed_vertex = *min_vertex_it;
             vertices_by_weight.erase(min_vertex_it);
-            done_vertices.insert(min_vertex_it->second);
+            done_vertices.insert(current_processed_vertex.second);
 
-            for (const EdgeId edge_id : graph_.GetIncidentEdges(min_vertex_it->second)) {
+            for (const EdgeId edge_id : graph_.GetIncidentEdges(current_processed_vertex.second)) {
                 const auto &edge = graph_.GetEdge(edge_id);
                 if (done_vertices.count(edge.to)) {
                     continue;
                 }
                 if (!routes_internal_data_[edge.to] ||
-                    routes_internal_data_[edge.to]->weight > min_vertex_it->first + edge.weight) {
+                    routes_internal_data_[edge.to]->weight > current_processed_vertex.first + edge.weight) {
                     if (routes_internal_data_[edge.to]) {
                         vertices_by_weight.erase({routes_internal_data_[edge.to]->weight, edge.to});
                     }
-                    routes_internal_data_[edge.to] = RouteInternalData{.weight = min_vertex_it->first + edge.weight,
+                    routes_internal_data_[edge.to] = RouteInternalData{.weight = current_processed_vertex.first +
+                                                                                 edge.weight,
                             .prev_edge = edge_id};
                     vertices_by_weight.emplace(routes_internal_data_[edge.to]->weight, edge.to);
                 }
