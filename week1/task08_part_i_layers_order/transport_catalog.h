@@ -2,6 +2,7 @@
 
 #include "descriptions.h"
 #include "json.h"
+#include "map_renderer.h"
 #include "svg.h"
 #include "transport_router.h"
 #include "utils.h"
@@ -42,37 +43,8 @@ public:
 
     std::string RenderMap() const;
 
+
 private:
-    struct RenderSettings {
-        RenderSettings();
-
-        explicit RenderSettings(const Json::Dict &render_settings_json);
-
-        double width, height;
-        double padding;
-        double stop_radius;
-        double line_width;
-        int stop_label_font_size;
-        Svg::Point stop_label_offset;
-        Svg::Color underlayer_color;
-        double underlayer_width;
-        std::vector<Svg::Color> color_palette;
-        int bus_label_font_size;
-        Svg::Point bus_label_offset;
-    };
-
-    class PointConverter {
-    public:
-        explicit PointConverter(const std::map<std::string, Sphere::Point> &stop_coords, const RenderSettings &renderSettings);
-
-        Svg::Point operator()(Sphere::Point to_convert) const;
-
-    private:
-        double min_lon;
-        double max_lat;
-        double zoom_coef;
-        double padding;
-    };
 
     static int ComputeRoadRouteLength(
             const std::vector<std::string> &stops,
@@ -87,12 +59,6 @@ private:
     std::unordered_map<std::string, Stop> stops_;
     std::unordered_map<std::string, Bus> buses_;
 
-    struct BusDescForRender {
-        std::vector<std::string> stops;
-        bool is_roundtrip;
-    };
-    std::map<std::string, BusDescForRender> buses_for_render_;
-    std::map<std::string, Sphere::Point> stops_for_render_;
-    RenderSettings render_settings;
+    MapRenderer map_renderer_;
     std::unique_ptr<TransportRouter> router_;
 };

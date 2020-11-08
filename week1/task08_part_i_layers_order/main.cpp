@@ -20,7 +20,6 @@ int main() {
             input_map.at("render_settings").AsMap()
     );
 
-//    ofstream ofs("C:\\Users\\Name\\Desktop\\a.txt");
     Json::PrintValue(
             Requests::ProcessAll(db, input_map.at("stat_requests").AsArray()),
             cout
