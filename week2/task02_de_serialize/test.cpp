@@ -86,9 +86,22 @@ void TestSaveLoad2() {
             {}};
     stringstream ss;
     Serialize(v, ss);
+    
+    cout << ss.str().length() << " " << ss.str() << endl;
+    for (auto c : ss.str()) {
+        cout << static_cast<int>(c) << " ";
+    }
+    cout << endl;
 
     vector<map<string, string>> v2;
     Deserialize(ss, v2);
+    for (const auto& m : v2) {
+        for (const auto& [k,v] : m) {
+            cout << k << " " << v << endl;
+        }
+        cout << "end map" << endl;
+    }
+    cout << "end vec" << endl;
     ASSERT_EQUAL(v, v2);
 }
 
