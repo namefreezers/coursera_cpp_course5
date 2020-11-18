@@ -87,6 +87,7 @@ namespace Parse {
     Token Lexer::NextToken() {
         Token res;
 
+        // Dedent
         if ((cur_token.Is<TokenType::Newline>() || cur_token.Is<TokenType::Dedent>() ) && !indents.empty()) {
             if (!is) {
                 indents.pop();
@@ -99,17 +100,17 @@ namespace Parse {
                 res = TokenType::Dedent();
                 cur_token = res;
                 return res;
-            } else {
-                cur_line_view.remove_prefix(indents.top());
             }
         }
 
+        // Eof
         if (!is) {
             res = TokenType::Eof();
             cur_token = res;
             return res;
         }
 
+        // NewLine
         if (cur_line_view.empty()) {
             res = TokenType::Newline{};
             while (getline(is, cur_line) && cur_line.find_first_not_of(' ') == string::npos);
@@ -123,21 +124,24 @@ namespace Parse {
             return res;
         }
 
-        char c = cur_line_view.at(0);
-
-        if (c == ' ') {
+        char c_maybe_indent = cur_line_view.at(0);
+        // Indent
+        if (c_maybe_indent == ' ') {
             size_t lex_end_idx = cur_line_view.find_first_not_of(' ');
 
-            indents.push(indents.empty() ? lex_end_idx : indents.top() + lex_end_idx);
-
+            // remove all indent anyway
             cur_line_view.remove_prefix(lex_end_idx);
-            res = TokenType::Indent{};
-            cur_token = res;
-            return res;
 
+            if (indents.empty() || lex_end_idx > indents.top()) {  // if indent greater
+                indents.push(lex_end_idx);
 
+                res = TokenType::Indent{};
+                cur_token = res;
+                return res;
+            }
         }
 
+        char c = cur_line_view.at(0);
         if (isalpha(c) || c == '_') {
             size_t lex_end_idx = cur_line_view.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
             string_view lex_to_ret = cur_line_view.substr(0, lex_end_idx);
