@@ -49,8 +49,7 @@ namespace Runtime {
         explicit operator bool() const;
 
     private:
-        ObjectHolder(std::shared_ptr<Object> data) : data(std::move(data)) {
-        }
+        ObjectHolder(std::shared_ptr<Object> data) : data(std::move(data)) {}
 
         std::shared_ptr<Object> data;
     };

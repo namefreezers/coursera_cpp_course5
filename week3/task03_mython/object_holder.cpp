@@ -1,6 +1,8 @@
 #include "object_holder.h"
 #include "object.h"
 
+#include <stdexcept>
+
 namespace Runtime {
 
     ObjectHolder ObjectHolder::Share(Object &object) {
@@ -8,7 +10,7 @@ namespace Runtime {
     }
 
     ObjectHolder ObjectHolder::None() {
-        return ObjectHolder();
+        return ObjectHolder::Own(NoneObject());
     }
 
     Object &ObjectHolder::operator*() {
@@ -36,10 +38,26 @@ namespace Runtime {
     }
 
     ObjectHolder::operator bool() const {
-        return Get();
+        return Get() && TryAs<Runtime::NoneObject>() == nullptr;
     }
 
     bool IsTrue(ObjectHolder object) {
+        if (!object.Get()) {
+            return false;
+        }
+        if (auto num = object.TryAs<Number>(); num != nullptr) {
+            return num->GetValue();
+        }
+        if (auto b = object.TryAs<Bool>(); b != nullptr) {
+            return b->GetValue();
+        }
+        if (auto str = object.TryAs<String>(); str != nullptr) {
+            return !str->GetValue().empty();
+        }
+        if (auto str = object.TryAs<NoneObject>(); str != nullptr) {
+            return false;
+        }
+        throw std::runtime_error("object_holder.cpp IsTrue");
     }
 
 }

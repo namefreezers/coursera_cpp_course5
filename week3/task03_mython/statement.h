@@ -66,7 +66,7 @@ namespace Ast {
 
     struct None : Statement {
         ObjectHolder Execute(Runtime::Closure &) override {
-            return ObjectHolder();
+            return ObjectHolder::None();
         }
     };
 
