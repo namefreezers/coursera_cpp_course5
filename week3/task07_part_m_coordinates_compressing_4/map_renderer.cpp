@@ -175,6 +175,78 @@ Svg::Point PointConverterFlattenCompress::operator()(Sphere::Point to_convert) c
 
 
 // ===========================================================================================================================================
+// ========================================================= PointConverterFlattenCompressRoutes =======================================================
+// ===========================================================================================================================================
+
+PointConverterFlattenCompressRoutes::PointConverterFlattenCompressRoutes() {}
+
+PointConverterFlattenCompressRoutes::PointConverterFlattenCompressRoutes(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict,
+                                                                         const RenderSettings &renderSettings) {
+    // adjacent stops
+    unordered_map<string, unordered_set<string>> adjacent_stops;
+    for (const auto&[bus_name, desc_bus] : buses_dict) {
+        for (auto[it_prev, it_next] = make_tuple(desc_bus->stops.begin(), next(desc_bus->stops.begin())); it_next != desc_bus->stops.end(); it_prev++, it_next++) {
+            adjacent_stops[*it_prev].insert(*it_next);
+            adjacent_stops[*it_next].insert(*it_prev);
+        }
+    }
+
+    padding = renderSettings.padding;
+    height = renderSettings.height;
+
+    std::vector<pair<std::string, Sphere::Point>> x_stops_sorted(stop_coords.begin(), stop_coords.end()), y_stops_sorted(stop_coords.begin(), stop_coords.end());
+    sort(x_stops_sorted.begin(), x_stops_sorted.end(),
+         [](const pair<std::string, Sphere::Point> &lhs, const pair<std::string, Sphere::Point> &rhs) { return lhs.second.longitude < rhs.second.longitude; });
+    sort(y_stops_sorted.begin(), y_stops_sorted.end(),
+         [](const pair<std::string, Sphere::Point> &lhs, const pair<std::string, Sphere::Point> &rhs) { return lhs.second.latitude < rhs.second.latitude; });
+
+    int max_idx_x = 0, max_idx_y = 0;
+    for (const auto&[stop_name, stop_point] : x_stops_sorted) {
+        auto adj_it = adjacent_stops.find(stop_name);
+        if (adj_it == adjacent_stops.end()) {  // if not adjacent
+            x_stop_coord_idx[stop_coords.at(stop_name)] = 0;
+            continue;
+        }
+
+        int max_idx = -1;
+        for (const string &adj_stop : adj_it->second) {
+            auto it = x_stop_coord_idx.find(stop_coords.at(adj_stop));
+            if (it != x_stop_coord_idx.end() && it->second > max_idx) {
+                max_idx = it->second;
+            }
+        }
+        x_stop_coord_idx[stop_coords.at(stop_name)] = max_idx + 1;  // or (-1) + 1 == 0
+        max_idx_x = max(max_idx_x, max_idx + 1);
+    }
+
+    for (const auto&[stop_name, stop_point] : y_stops_sorted) {
+        auto adj_it = adjacent_stops.find(stop_name);
+        if (adj_it == adjacent_stops.end()) {  // if not adjacent
+            y_stop_coord_idx[stop_coords.at(stop_name)] = 0;
+            continue;
+        }
+
+        int max_idx = -1;
+        for (const string &adj_stop : adj_it->second) {
+            auto it = y_stop_coord_idx.find(stop_coords.at(adj_stop));
+            if (it != y_stop_coord_idx.end() && it->second > max_idx) {
+                max_idx = it->second;
+            }
+        }
+        y_stop_coord_idx[stop_coords.at(stop_name)] = max_idx + 1;  // or (-1) + 1 == 0
+        max_idx_y = max(max_idx_y, max_idx + 1);
+    }
+
+    x_step = max_idx_x == 0 ? 0 : (renderSettings.width - 2 * renderSettings.padding) / static_cast<double>(max_idx_x);
+    y_step = max_idx_y == 0 ? 0 : (renderSettings.height - 2 * renderSettings.padding) / static_cast<double>(max_idx_y);
+}
+
+Svg::Point PointConverterFlattenCompressRoutes::operator()(Sphere::Point to_convert) const {
+    return {this->x_stop_coord_idx.at(to_convert) * x_step + padding, height - padding - this->y_stop_coord_idx.at(to_convert) * y_step};
+}
+
+
+// ===========================================================================================================================================
 // ========================================================= PointConverterIntermediateStops =================================================
 // ===========================================================================================================================================
 
@@ -244,7 +316,7 @@ PointConverterIntermFlattenCompr::PointConverterIntermFlattenCompr(const std::ma
     std::map<std::string, Sphere::Point> new_coords;
     transform(stop_coords.begin(), stop_coords.end(), inserter(new_coords, new_coords.end()),
               [this](const pair<std::string, Sphere::Point> &entry) { return pair(entry.first, conv_intermediate(entry.second)); });
-    conv_flatten_compress = PointConverterFlattenCompress(new_coords, buses_dict, renderSettings);
+    conv_flatten_compress = PointConverterFlattenCompressRoutes(new_coords, buses_dict, renderSettings);
 }
 
 Svg::Point PointConverterIntermFlattenCompr::operator()(Sphere::Point to_convert) const {

@@ -77,6 +77,24 @@ private:
     std::vector<double> x_coords_sorted, y_coords_sorted;
 };
 
+class PointConverterFlattenCompressRoutes {
+public:
+    PointConverterFlattenCompressRoutes();
+
+    explicit PointConverterFlattenCompressRoutes(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings);
+
+    Svg::Point operator()(Sphere::Point to_convert) const;
+
+private:
+    double padding;
+    double height;
+
+    double x_step;
+    double y_step;
+
+    std::unordered_map<Sphere::Point, int, Sphere::PointHash> x_stop_coord_idx, y_stop_coord_idx;
+};
+
 class PointConverterIntermediateStops {
 public:
     PointConverterIntermediateStops();
@@ -99,7 +117,7 @@ public:
 
 private:
     PointConverterIntermediateStops conv_intermediate;
-    PointConverterFlattenCompress conv_flatten_compress;
+    PointConverterFlattenCompressRoutes conv_flatten_compress;
 };
 
 class MapRenderer {
