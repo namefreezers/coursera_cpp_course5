@@ -60,11 +60,11 @@ private:
     std::vector<double> x_coords_sorted, y_coords_sorted;
 };
 
-class PointConverterFlattened_2 {
+class PointConverterFlattenCompress {
 public:
-    PointConverterFlattened_2();
+    PointConverterFlattenCompress();
 
-    explicit PointConverterFlattened_2(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings);
+    explicit PointConverterFlattenCompress(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings);
 
     Svg::Point operator()(Sphere::Point to_convert) const;
 
@@ -75,6 +75,31 @@ private:
     double x_step;
     double y_step;
     std::vector<double> x_coords_sorted, y_coords_sorted;
+};
+
+class PointConverterIntermediateStops {
+public:
+    PointConverterIntermediateStops();
+
+    explicit PointConverterIntermediateStops(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict);
+
+    Sphere::Point operator()(Sphere::Point to_convert) const;
+
+private:
+    std::unordered_map<Sphere::Point, Sphere::Point, Sphere::PointHash> mapping;
+};
+
+class PointConverterIntermFlattenCompr {
+public:
+    PointConverterIntermFlattenCompr();
+
+    explicit PointConverterIntermFlattenCompr(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings);
+
+    Svg::Point operator()(Sphere::Point to_convert) const;
+
+private:
+    PointConverterIntermediateStops conv_intermediate;
+    PointConverterFlattenCompress conv_flatten_compress;
 };
 
 class MapRenderer {
@@ -98,5 +123,5 @@ private:
     std::map<std::string, BusDescForRender> buses_for_render_;
     std::map<std::string, Sphere::Point> stops_for_render_;
     RenderSettings render_settings;
-    PointConverterFlattened_2 converter;
+    PointConverterIntermFlattenCompr converter;
 };

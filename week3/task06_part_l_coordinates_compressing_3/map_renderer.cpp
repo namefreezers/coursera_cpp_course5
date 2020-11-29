@@ -28,6 +28,11 @@ RenderSettings::RenderSettings(const Json::Dict &render_settings_json) {
     }
 }
 
+
+// ===========================================================================================================================================
+// ========================================================= PointConverter ==================================================================
+// ===========================================================================================================================================
+
 PointConverter::PointConverter() {}
 
 PointConverter::PointConverter(const std::map<std::string, Sphere::Point> &stop_coords, const RenderSettings &renderSettings) {
@@ -64,6 +69,10 @@ Svg::Point PointConverter::operator()(Sphere::Point to_convert) const {
 }
 
 
+// ===========================================================================================================================================
+// ========================================================= PointConverterFlattened =========================================================
+// ===========================================================================================================================================
+
 PointConverterFlattened::PointConverterFlattened() {}
 
 PointConverterFlattened::PointConverterFlattened(const std::map<std::string, Sphere::Point> &stop_coords, const RenderSettings &renderSettings) {
@@ -92,14 +101,18 @@ Svg::Point PointConverterFlattened::operator()(Sphere::Point to_convert) const {
 }
 
 
-PointConverterFlattened_2::PointConverterFlattened_2() {}
+// ===========================================================================================================================================
+// ========================================================= PointConverterFlattenCompress =======================================================
+// ===========================================================================================================================================
+
+PointConverterFlattenCompress::PointConverterFlattenCompress() {}
 
 bool is_next_stop_adjacent(const vector<string> &cur_coord_stops, const string &next_stop, const unordered_map<string, unordered_set<string>> &adjacent_stops) {
     auto it_next_stop_adjacent = adjacent_stops.find(next_stop);
     if (it_next_stop_adjacent == adjacent_stops.end()) {  // if stop not in bus -> not adjacent with any
         return false;
     }
-    const unordered_set<string>& next_stop_adjacent = it_next_stop_adjacent->second;
+    const unordered_set<string> &next_stop_adjacent = it_next_stop_adjacent->second;
 
     // if adjacent with any of
     return any_of(
@@ -111,7 +124,7 @@ bool is_next_stop_adjacent(const vector<string> &cur_coord_stops, const string &
     );
 }
 
-PointConverterFlattened_2::PointConverterFlattened_2(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings) {
+PointConverterFlattenCompress::PointConverterFlattenCompress(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings) {
     unordered_map<string, unordered_set<string>> adjacent_stops;
     for (const auto&[bus_name, desc_bus] : buses_dict) {
         for (auto[it_prev, it_next] = make_tuple(desc_bus->stops.begin(), next(desc_bus->stops.begin())); it_next != desc_bus->stops.end(); it_prev++, it_next++) {
@@ -154,12 +167,94 @@ PointConverterFlattened_2::PointConverterFlattened_2(const std::map<std::string,
     y_step = y_coords_sorted.size() < 2 ? 0 : (renderSettings.height - 2 * renderSettings.padding) / static_cast<double>(y_coords_sorted.size() - 1);
 }
 
-Svg::Point PointConverterFlattened_2::operator()(Sphere::Point to_convert) const {
+Svg::Point PointConverterFlattenCompress::operator()(Sphere::Point to_convert) const {
     int idx_x = prev(upper_bound(x_coords_sorted.begin(), x_coords_sorted.end(), to_convert.longitude)) - x_coords_sorted.begin();
     int idx_y = prev(upper_bound(y_coords_sorted.begin(), y_coords_sorted.end(), to_convert.latitude)) - y_coords_sorted.begin();
     return {idx_x * x_step + padding, height - padding - idx_y * y_step};
 }
 
+
+// ===========================================================================================================================================
+// ========================================================= PointConverterIntermediateStops =================================================
+// ===========================================================================================================================================
+
+PointConverterIntermediateStops::PointConverterIntermediateStops() {}
+
+PointConverterIntermediateStops::PointConverterIntermediateStops(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict) {
+    unordered_set<string> bearing_stops;
+
+    // ending stations
+    for (const auto&[bus_name, desc_bus] : buses_dict) {
+        bearing_stops.insert(desc_bus->stops.front());
+        if (!desc_bus->is_roundtrip) { bearing_stops.insert(desc_bus->stops.at(desc_bus->stops.size() / 2)); }
+    }
+
+    // transfer stop
+    unordered_map<string, vector<string>> buses_by_stop;
+    for (const auto&[bus_name, desc_bus] : buses_dict) {
+        for (const string &stop_in_bus : desc_bus->stops) {
+            buses_by_stop[stop_in_bus].push_back(bus_name);
+        }
+    }
+    for (const auto&[stop_name, buses_stopping] : buses_by_stop) {
+        if (unordered_set(buses_stopping.begin(), buses_stopping.end()).size() > 1 || buses_stopping.size() > 2) {
+            bearing_stops.insert(stop_name);
+        }
+    }
+
+    // mapping
+    for (const auto&[bus_name, desc_bus] : buses_dict) {
+        int prev_bearing = 0;
+        mapping[stop_coords.at(desc_bus->stops.at(0))] = stop_coords.at(desc_bus->stops.at(0));
+        for (int next_bearing = 1; next_bearing < desc_bus->stops.size(); next_bearing++) {
+            if (bearing_stops.count(desc_bus->stops.at(next_bearing))) {
+                double lon_step = (stop_coords.at(desc_bus->stops.at(next_bearing)).longitude - stop_coords.at(desc_bus->stops.at(prev_bearing)).longitude) / (next_bearing - prev_bearing);
+                double lat_step = (stop_coords.at(desc_bus->stops.at(next_bearing)).latitude - stop_coords.at(desc_bus->stops.at(prev_bearing)).latitude) / (next_bearing - prev_bearing);
+                for (int i = prev_bearing + 1; i <= next_bearing; i++) {
+                    mapping[stop_coords.at(desc_bus->stops.at(i))] = {
+                            stop_coords.at(desc_bus->stops.at(prev_bearing)).latitude + lat_step * (i - prev_bearing),
+                            stop_coords.at(desc_bus->stops.at(prev_bearing)).longitude + lon_step * (i - prev_bearing)
+                    };
+                    prev_bearing = next_bearing;
+                }
+            }
+        }
+    }
+}
+
+Sphere::Point PointConverterIntermediateStops::operator()(Sphere::Point to_convert) const {
+    auto it = mapping.find(to_convert);
+    if (it == mapping.end()) {
+        return to_convert;  // stop without buses
+    }
+    return it->second;
+}
+
+
+// ===========================================================================================================================================
+// ========================================================= PointConverterIntermFlattenCompr =======================================================
+// ===========================================================================================================================================
+
+PointConverterIntermFlattenCompr::PointConverterIntermFlattenCompr() {}
+
+PointConverterIntermFlattenCompr::PointConverterIntermFlattenCompr(const std::map<std::string, Sphere::Point> &stop_coords,
+                                                                   const Descriptions::BusesDict &buses_dict,
+                                                                   const RenderSettings &renderSettings) {
+    conv_intermediate = PointConverterIntermediateStops(stop_coords, buses_dict);
+    std::map<std::string, Sphere::Point> new_coords;
+    transform(stop_coords.begin(), stop_coords.end(), inserter(new_coords, new_coords.end()),
+              [this](const pair<std::string, Sphere::Point> &entry) { return pair(entry.first, conv_intermediate(entry.second)); });
+    conv_flatten_compress = PointConverterFlattenCompress(new_coords, buses_dict, renderSettings);
+}
+
+Svg::Point PointConverterIntermFlattenCompr::operator()(Sphere::Point to_convert) const {
+    return conv_flatten_compress(conv_intermediate(to_convert));
+}
+
+
+// ===========================================================================================================================================
+// ========================================================= MapRenderer =====================================================================
+// ===========================================================================================================================================
 
 MapRenderer::MapRenderer() {}
 
@@ -172,7 +267,7 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descri
     }
 
     render_settings = RenderSettings(render_settings_json);
-    converter = PointConverterFlattened_2(stops_for_render_, buses_dict, render_settings);
+    converter = PointConverterIntermFlattenCompr(stops_for_render_, buses_dict, render_settings);
 }
 
 std::string MapRenderer::RenderMap() const {
