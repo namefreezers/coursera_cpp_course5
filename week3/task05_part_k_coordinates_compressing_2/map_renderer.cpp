@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <unordered_set>
 
 using namespace std;
 
@@ -91,6 +92,75 @@ Svg::Point PointConverterFlattened::operator()(Sphere::Point to_convert) const {
 }
 
 
+PointConverterFlattened_2::PointConverterFlattened_2() {}
+
+bool is_next_stop_adjacent(const vector<string> &cur_coord_stops, const string &next_stop, const unordered_map<string, unordered_set<string>> &adjacent_stops) {
+    auto it_next_stop_adjacent = adjacent_stops.find(next_stop);
+    if (it_next_stop_adjacent == adjacent_stops.end()) {  // if stop not in bus -> not adjacent with any
+        return false;
+    }
+    const unordered_set<string>& next_stop_adjacent = it_next_stop_adjacent->second;
+
+    // if adjacent with any of
+    return any_of(
+            cur_coord_stops.begin(),
+            cur_coord_stops.end(),
+            [&next_stop_adjacent](const string &cur_coord_stop) {
+                return next_stop_adjacent.count(cur_coord_stop);
+            }
+    );
+}
+
+PointConverterFlattened_2::PointConverterFlattened_2(const std::map<std::string, Sphere::Point> &stop_coords, const Descriptions::BusesDict &buses_dict, const RenderSettings &renderSettings) {
+    unordered_map<string, unordered_set<string>> adjacent_stops;
+    for (const auto&[bus_name, desc_bus] : buses_dict) {
+        for (auto[it_prev, it_next] = make_tuple(desc_bus->stops.begin(), next(desc_bus->stops.begin())); it_next != desc_bus->stops.end(); it_prev++, it_next++) {
+            adjacent_stops[*it_prev].insert(*it_next);
+            adjacent_stops[*it_next].insert(*it_prev);
+        }
+    }
+
+    padding = renderSettings.padding;
+    height = renderSettings.height;
+
+    std::vector<pair<std::string, Sphere::Point>> x_stops_sorted(stop_coords.begin(), stop_coords.end()), y_stops_sorted(stop_coords.begin(), stop_coords.end());
+    sort(x_stops_sorted.begin(), x_stops_sorted.end(),
+         [](const pair<std::string, Sphere::Point> &lhs, const pair<std::string, Sphere::Point> &rhs) { return lhs.second.longitude < rhs.second.longitude; });
+    sort(y_stops_sorted.begin(), y_stops_sorted.end(),
+         [](const pair<std::string, Sphere::Point> &lhs, const pair<std::string, Sphere::Point> &rhs) { return lhs.second.latitude < rhs.second.latitude; });
+
+    vector<string> cur_coord_stops = {x_stops_sorted.front().first};
+    x_coords_sorted.push_back(x_stops_sorted.front().second.longitude);
+    for (auto it_prev = x_stops_sorted.begin(), it_next = next(x_stops_sorted.begin()); it_next != x_stops_sorted.end(); it_prev++, it_next++) {
+        const string &s1 = it_prev->first, s2 = it_next->first;
+        if (is_next_stop_adjacent(cur_coord_stops, it_next->first, adjacent_stops)) {  // if adjacent with any of
+            x_coords_sorted.push_back(it_next->second.longitude);
+            cur_coord_stops.clear();
+        }
+        cur_coord_stops.push_back(it_next->first);
+    }
+
+    cur_coord_stops = {y_stops_sorted.front().first};
+    y_coords_sorted.push_back(y_stops_sorted.front().second.latitude);
+    for (auto it_prev = y_stops_sorted.begin(), it_next = next(y_stops_sorted.begin()); it_next != y_stops_sorted.end(); it_prev++, it_next++) {
+        if (is_next_stop_adjacent(cur_coord_stops, it_next->first, adjacent_stops)) {  // if adjacent with any of
+            y_coords_sorted.push_back(it_next->second.latitude);
+            cur_coord_stops.clear();
+        }
+        cur_coord_stops.push_back(it_next->first);
+    }
+
+    x_step = x_coords_sorted.size() < 2 ? 0 : (renderSettings.width - 2 * renderSettings.padding) / static_cast<double>(x_coords_sorted.size() - 1);
+    y_step = y_coords_sorted.size() < 2 ? 0 : (renderSettings.height - 2 * renderSettings.padding) / static_cast<double>(y_coords_sorted.size() - 1);
+}
+
+Svg::Point PointConverterFlattened_2::operator()(Sphere::Point to_convert) const {
+    int idx_x = prev(upper_bound(x_coords_sorted.begin(), x_coords_sorted.end(), to_convert.longitude)) - x_coords_sorted.begin();
+    int idx_y = prev(upper_bound(y_coords_sorted.begin(), y_coords_sorted.end(), to_convert.latitude)) - y_coords_sorted.begin();
+    return {idx_x * x_step + padding, height - padding - idx_y * y_step};
+}
+
+
 MapRenderer::MapRenderer() {}
 
 MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descriptions::BusesDict &buses_dict, const Json::Dict &render_settings_json) {
@@ -102,7 +172,7 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descri
     }
 
     render_settings = RenderSettings(render_settings_json);
-    converter = PointConverterFlattened(stops_for_render_, render_settings);
+    converter = PointConverterFlattened_2(stops_for_render_, buses_dict, render_settings);
 }
 
 std::string MapRenderer::RenderMap() const {
