@@ -43,6 +43,23 @@ private:
     double padding;
 };
 
+class PointConverterFlattened {
+public:
+    PointConverterFlattened();
+
+    explicit PointConverterFlattened(const std::map<std::string, Sphere::Point> &stop_coords, const RenderSettings &renderSettings);
+
+    Svg::Point operator()(Sphere::Point to_convert) const;
+
+private:
+    double padding;
+    double height;
+
+    double x_step;
+    double y_step;
+    std::vector<double> x_coords_sorted, y_coords_sorted;
+};
+
 class MapRenderer {
 public:
     MapRenderer();
@@ -64,5 +81,5 @@ private:
     std::map<std::string, BusDescForRender> buses_for_render_;
     std::map<std::string, Sphere::Point> stops_for_render_;
     RenderSettings render_settings;
-    PointConverter converter;
+    PointConverterFlattened converter;
 };
