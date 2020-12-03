@@ -26,6 +26,7 @@ RenderSettings::RenderSettings(const Json::Dict &render_settings_json) {
     for (const auto &l_node : render_settings_json.at("layers").AsArray()) {
         layers.push_back(l_node.AsString());
     }
+    outer_margin = render_settings_json.at("outer_margin").AsDouble();
 }
 
 
@@ -340,10 +341,15 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descri
 
     render_settings = RenderSettings(render_settings_json);
     converter = PointConverterIntermFlattenCompr(stops_for_render_, buses_dict, render_settings);
+
+    size_t color_idx = 0;
+    for (const auto&[bus_name, bus_desc] : buses_for_render_) {
+        bus_line_colors[bus_name] = color_idx;
+        color_idx = color_idx + 1 == render_settings.color_palette.size() ? 0 : color_idx + 1;
+    }
 }
 
-std::string MapRenderer::RenderMap() const {
-    Svg::Document doc;
+void MapRenderer::RenderMapInplace(Svg::Document &doc) const {
 
     unordered_map<string, function<void(Svg::Document &)>> funcs{
             {"bus_lines",   [this](Svg::Document &doc) { DrawBusLines(doc); }},
@@ -356,6 +362,53 @@ std::string MapRenderer::RenderMap() const {
         auto &render_func = funcs.at(layer_name);
         render_func(doc);
     }
+}
+
+std::string MapRenderer::RenderMap() const {
+    Svg::Document doc;
+
+    RenderMapInplace(doc);
+
+    stringstream ss;
+    doc.Render(ss);
+    return ss.str();
+}
+
+void MapRenderer::RenderShadowingRectInplace(Svg::Document &doc) const {
+    doc.Add(  // Rect
+            Svg::Rect()
+                    .SetFillColor(render_settings.underlayer_color)
+                    .SetUpLeft({-render_settings.outer_margin, -render_settings.outer_margin})
+                    .SetDimensions({render_settings.width + 2 * render_settings.outer_margin,
+                                    render_settings.height + 2 * render_settings.outer_margin})
+    );
+}
+
+void MapRenderer::RenderRouteInplace(Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
+    if (items.empty()) { return; }
+
+    unordered_map<string, function<void(Svg::Document &, const std::vector<TransportRouter::RouteInfo::BusItem> &)>> funcs{
+            {"bus_lines",   [this](Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) { DrawBusLinesInRoute(doc, route_bus_items); }},
+            {"bus_labels",  [this](Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) { DrawBusLabelsInRoute(doc, route_bus_items); }},
+            {"stop_points", [this](Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) { DrawStopPointsInRoute(doc, route_bus_items); }},
+            {"stop_labels", [this](Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) { DrawStopLabelsInRoute(doc, route_bus_items); }},
+    };
+
+    for (const auto &layer_name : render_settings.layers) {
+        auto &render_func = funcs.at(layer_name);
+        render_func(doc, items);
+    }
+}
+
+
+std::string MapRenderer::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
+    Svg::Document doc;
+
+    RenderMapInplace(doc);
+
+    RenderShadowingRectInplace(doc);
+
+    RenderRouteInplace(doc, items);
 
     stringstream ss;
     doc.Render(ss);
@@ -363,121 +416,157 @@ std::string MapRenderer::RenderMap() const {
 }
 
 void MapRenderer::DrawBusLines(Svg::Document &doc) const {
-    size_t color_idx = 0;
     for (const auto&[bus_name, bus_desc] : buses_for_render_) {
-        Svg::Polyline polyline;
-        for (const auto &stop : bus_desc.stops) {
-            polyline.AddPoint(converter(stops_for_render_.at(stop)));
-        }
-        polyline.SetStrokeColor(render_settings.color_palette[color_idx]);
-        polyline.SetStrokeWidth(render_settings.line_width);
-        polyline.SetStrokeLineCap("round");
-        polyline.SetStrokeLineJoin("round");
-
-        doc.Add(polyline);
-        color_idx = color_idx + 1 == render_settings.color_palette.size() ? 0 : color_idx + 1;
+        doc.Add(DrawPolylineFromStops(bus_desc.stops.begin(), bus_desc.stops.end(), bus_line_colors.at(bus_name)));
     }
 }
 
+void MapRenderer::DrawBusLinesInRoute(Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) const {
+    for (const auto &bus_route_item : route_bus_items) {
+        doc.Add(DrawPolylineFromStops(
+                buses_for_render_.at(bus_route_item.bus_name).stops.begin() + bus_route_item.start_stop_idx,
+                buses_for_render_.at(bus_route_item.bus_name).stops.begin() + bus_route_item.finish_stop_idx + 1,
+                bus_line_colors.at(bus_route_item.bus_name))
+        );
+    }
+}
+
+void MapRenderer::DrawBusLabelInplace(Svg::Document &doc, const string &bus_name, const string &stop_name) const {
+    Svg::Text text1;
+    text1.SetPoint(converter(stops_for_render_.at(stop_name)));//bus_desc.stops.at(0)
+    text1.SetOffset(render_settings.bus_label_offset);
+    text1.SetFontSize(render_settings.bus_label_font_size);
+    text1.SetFontFamily("Verdana");
+    text1.SetFontWeight("bold");
+    text1.SetData(bus_name);
+
+    text1.SetFillColor(render_settings.underlayer_color);
+    text1.SetStrokeColor(render_settings.underlayer_color);
+    text1.SetStrokeWidth(render_settings.underlayer_width);
+    text1.SetStrokeLineCap("round");
+    text1.SetStrokeLineJoin("round");
+    doc.Add(text1);
+
+    Svg::Text text2;
+    text2.SetPoint(converter(stops_for_render_.at(stop_name))); //bus_desc.stops.at(0)
+    text2.SetOffset(render_settings.bus_label_offset);
+    text2.SetFontSize(render_settings.bus_label_font_size);
+    text2.SetFontFamily("Verdana");
+    text2.SetFontWeight("bold");
+    text2.SetData(bus_name);
+
+    text2.SetFillColor(render_settings.color_palette[bus_line_colors.at(bus_name)]);
+    doc.Add(text2);
+}
+
 void MapRenderer::DrawBusLabels(Svg::Document &doc) const {
-    size_t color_idx = 0;
     for (const auto&[bus_name, bus_desc] : buses_for_render_) {
         if (bus_desc.stops.empty()) { continue; }
-
-        Svg::Text text1;
-        text1.SetPoint(converter(stops_for_render_.at(bus_desc.stops.at(0))));
-        text1.SetOffset(render_settings.bus_label_offset);
-        text1.SetFontSize(render_settings.bus_label_font_size);
-        text1.SetFontFamily("Verdana");
-        text1.SetFontWeight("bold");
-        text1.SetData(bus_name);
-
-        text1.SetFillColor(render_settings.underlayer_color);
-        text1.SetStrokeColor(render_settings.underlayer_color);
-        text1.SetStrokeWidth(render_settings.underlayer_width);
-        text1.SetStrokeLineCap("round");
-        text1.SetStrokeLineJoin("round");
-        doc.Add(text1);
-
-        Svg::Text text2;
-        text2.SetPoint(converter(stops_for_render_.at(bus_desc.stops.at(0))));
-        text2.SetOffset(render_settings.bus_label_offset);
-        text2.SetFontSize(render_settings.bus_label_font_size);
-        text2.SetFontFamily("Verdana");
-        text2.SetFontWeight("bold");
-        text2.SetData(bus_name);
-
-        text2.SetFillColor(render_settings.color_palette[color_idx]);
-        doc.Add(text2);
+        DrawBusLabelInplace(doc, bus_name, bus_desc.stops.at(0));
 
         if (!bus_desc.is_roundtrip && bus_desc.stops.at((bus_desc.stops.size() - 1) / 2) != bus_desc.stops.at(0)) {
             size_t idx_second = (bus_desc.stops.size() - 1) / 2;
+            DrawBusLabelInplace(doc, bus_name, bus_desc.stops.at(idx_second));
+        }
+    }
+}
 
-            Svg::Text text3;
-            text3.SetPoint(converter(stops_for_render_.at(bus_desc.stops.at(idx_second))));
-            text3.SetOffset(render_settings.bus_label_offset);
-            text3.SetFontSize(render_settings.bus_label_font_size);
-            text3.SetFontFamily("Verdana");
-            text3.SetFontWeight("bold");
-            text3.SetData(bus_name);
+bool MapRenderer::CheckIfEndingStop(const BusDescForRender &bus_desc, const string &stop_name) const {
+    if (bus_desc.stops.at(0) == stop_name) {
+        return true;
+    }
+    size_t idx_middle = (bus_desc.stops.size() - 1) / 2;
+    if (!bus_desc.is_roundtrip && bus_desc.stops.at(idx_middle) == stop_name) {
+        return true;
+    }
+    return false;
+}
 
-            text3.SetFillColor(render_settings.underlayer_color);
-            text3.SetStrokeColor(render_settings.underlayer_color);
-            text3.SetStrokeWidth(render_settings.underlayer_width);
-            text3.SetStrokeLineCap("round");
-            text3.SetStrokeLineJoin("round");
-            doc.Add(text3);
+void MapRenderer::DrawBusLabelsInRoute(Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) const {
+    for (const auto &bus_item : route_bus_items) {
+        const auto &bus_desc = buses_for_render_.at(bus_item.bus_name);
 
-            Svg::Text text4;
-            text4.SetPoint(converter(stops_for_render_.at(bus_desc.stops.at(idx_second))));
-            text4.SetOffset(render_settings.bus_label_offset);
-            text4.SetFontSize(render_settings.bus_label_font_size);
-            text4.SetFontFamily("Verdana");
-            text4.SetFontWeight("bold");
-            text4.SetData(bus_name);
-
-            text4.SetFillColor(render_settings.color_palette[color_idx]);
-            doc.Add(text4);
+        const string &start_stop_name = bus_desc.stops.at(bus_item.start_stop_idx);
+        if (CheckIfEndingStop(bus_desc, start_stop_name)) {
+            DrawBusLabelInplace(doc, bus_item.bus_name, start_stop_name);
         }
 
-        color_idx = color_idx + 1 == render_settings.color_palette.size() ? 0 : color_idx + 1;
+        const string &finish_stop_name = bus_desc.stops.at(bus_item.finish_stop_idx);
+        if (CheckIfEndingStop(bus_desc, finish_stop_name)) {
+            DrawBusLabelInplace(doc, bus_item.bus_name, finish_stop_name);
+        }
     }
+}
+
+Svg::Circle MapRenderer::DrawStopCircle(Sphere::Point coords) const {
+    Svg::Circle circle;
+    circle.SetCenter(converter(coords));
+    circle.SetRadius(render_settings.stop_radius);
+    circle.SetFillColor("white");
+    return circle;
 }
 
 void MapRenderer::DrawStopPoints(Svg::Document &doc) const {
     for (const auto&[stop_name, coords] : stops_for_render_) {
-        Svg::Circle circle;
-        circle.SetCenter(converter(coords));
-        circle.SetRadius(render_settings.stop_radius);
-        circle.SetFillColor("white");
-        doc.Add(circle);
+        doc.Add(DrawStopCircle(coords));
     }
+}
+
+void MapRenderer::DrawStopPointsInRoute(Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) const {
+    for (const auto &bus_item : route_bus_items) {
+        const auto &bus_desc = buses_for_render_.at(bus_item.bus_name);
+
+        for (int i = bus_item.start_stop_idx; i <= bus_item.finish_stop_idx; i++) {
+            const string &stop_name = bus_desc.stops.at(i);
+            doc.Add(DrawStopCircle(stops_for_render_.at(stop_name)));
+        }
+    }
+}
+
+void MapRenderer::DrawStopLabelInplace(Svg::Document &doc, Sphere::Point coords, const string &stop_name) const {
+    Svg::Text text1;
+    text1.SetPoint(converter(coords));
+    text1.SetOffset(render_settings.stop_label_offset);
+    text1.SetFontSize(render_settings.stop_label_font_size);
+    text1.SetFontFamily("Verdana");
+    text1.SetData(stop_name);
+
+    text1.SetFillColor(render_settings.underlayer_color);
+    text1.SetStrokeColor(render_settings.underlayer_color);
+    text1.SetStrokeWidth(render_settings.underlayer_width);
+    text1.SetStrokeLineCap("round");
+    text1.SetStrokeLineJoin("round");
+    doc.Add(text1);
+
+    Svg::Text text2;
+    text2.SetPoint(converter(coords));
+    text2.SetOffset(render_settings.stop_label_offset);
+    text2.SetFontSize(render_settings.stop_label_font_size);
+    text2.SetFontFamily("Verdana");
+    text2.SetData(stop_name);
+
+    text2.SetFillColor("black");
+    doc.Add(text2);
 }
 
 void MapRenderer::DrawStopLabels(Svg::Document &doc) const {
     for (const auto&[stop_name, coords] : stops_for_render_) {
-        Svg::Text text1;
-        text1.SetPoint(converter(coords));
-        text1.SetOffset(render_settings.stop_label_offset);
-        text1.SetFontSize(render_settings.stop_label_font_size);
-        text1.SetFontFamily("Verdana");
-        text1.SetData(stop_name);
-
-        text1.SetFillColor(render_settings.underlayer_color);
-        text1.SetStrokeColor(render_settings.underlayer_color);
-        text1.SetStrokeWidth(render_settings.underlayer_width);
-        text1.SetStrokeLineCap("round");
-        text1.SetStrokeLineJoin("round");
-        doc.Add(text1);
-
-        Svg::Text text2;
-        text2.SetPoint(converter(coords));
-        text2.SetOffset(render_settings.stop_label_offset);
-        text2.SetFontSize(render_settings.stop_label_font_size);
-        text2.SetFontFamily("Verdana");
-        text2.SetData(stop_name);
-
-        text2.SetFillColor("black");
-        doc.Add(text2);
+        DrawStopLabelInplace(doc, coords, stop_name);
     }
+}
+
+void MapRenderer::DrawStopLabelsInRoute(Svg::Document &doc, const std::vector<TransportRouter::RouteInfo::BusItem> &route_bus_items) const {
+    for (const auto &bus_item : route_bus_items) {
+        const auto &bus_desc = buses_for_render_.at(bus_item.bus_name);
+        const string &stop_name = bus_desc.stops.at(bus_item.start_stop_idx);
+
+        DrawStopLabelInplace(doc, stops_for_render_.at(stop_name), stop_name);
+    }
+
+    // last
+    const auto &bus_item = route_bus_items.back();
+    const auto &bus_desc = buses_for_render_.at(bus_item.bus_name);
+    const string &stop_name = bus_desc.stops.at(bus_item.finish_stop_idx);
+
+    DrawStopLabelInplace(doc, stops_for_render_.at(stop_name), stop_name);
 }

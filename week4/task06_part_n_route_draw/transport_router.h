@@ -26,7 +26,12 @@ public:
             std::string bus_name;
             double time;
             size_t span_count;
+
+            // Render Route
+            size_t start_stop_idx;
+            size_t finish_stop_idx;
         };
+
         struct WaitItem {
             std::string stop_name;
             double time;
@@ -62,6 +67,10 @@ private:
     struct BusEdgeInfo {
         std::string bus_name;
         size_t span_count;
+
+        // Render Route
+        size_t start_stop_idx;
+        size_t finish_stop_idx;
     };
     struct WaitEdgeInfo {
     };

@@ -43,6 +43,7 @@ public:
 
     std::string RenderMap() const;
 
+    std::string RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem>& items) const;
 
 private:
 

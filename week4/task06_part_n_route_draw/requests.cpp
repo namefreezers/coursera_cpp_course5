@@ -58,25 +58,6 @@ namespace Requests {
         }
     };
 
-    Json::Dict Route::Process(const TransportCatalog &db) const {
-        Json::Dict dict;
-        const auto route = db.FindRoute(stop_from, stop_to);
-        if (!route) {
-            dict["error_message"] = Json::Node("not found"s);
-        } else {
-            dict["total_time"] = Json::Node(route->total_time);
-            vector<Json::Node> items;
-            items.reserve(route->items.size());
-            for (const auto &item : route->items) {
-                items.push_back(visit(RouteItemResponseBuilder{}, item));
-            }
-
-            dict["items"] = move(items);
-        }
-
-        return dict;
-    }
-
     string EscapeCharacters(string str) {
         size_t start_pos = 0;
         while((start_pos = str.find('\\', start_pos)) != std::string::npos) {
@@ -98,6 +79,33 @@ namespace Requests {
 
         return str;
     };
+
+    Json::Dict Route::Process(const TransportCatalog &db) const {
+        Json::Dict dict;
+        const auto route = db.FindRoute(stop_from, stop_to);
+        if (!route) {
+            dict["error_message"] = Json::Node("not found"s);
+        } else {
+            dict["total_time"] = Json::Node(route->total_time);
+
+            vector<Json::Node> items;
+            items.reserve(route->items.size());
+            for (const auto &item : route->items) {
+                items.emplace_back(visit(RouteItemResponseBuilder{}, item));
+            }
+            dict["items"] = move(items);
+
+            vector<TransportRouter::RouteInfo::BusItem> bus_items;
+            for (const auto &item : route->items) {
+                if (holds_alternative<TransportRouter::RouteInfo::BusItem>(item)) {
+                    bus_items.push_back(get<TransportRouter::RouteInfo::BusItem>(item));
+                }
+            }
+            dict["map"] = Json::Node(EscapeCharacters(db.RenderRoute(bus_items)));
+        }
+
+        return dict;
+    }
 
     Json::Dict Map::Process(const TransportCatalog &db) const {
         Json::Dict dict;

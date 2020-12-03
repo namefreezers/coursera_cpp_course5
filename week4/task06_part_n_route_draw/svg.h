@@ -139,6 +139,19 @@ namespace Svg {
         std::string text = "";
     };
 
+    class Rect : public SvgObject<Rect> {
+    public:
+        Rect &SetUpLeft(Point p);
+
+        Rect &SetDimensions(Point p);
+
+        explicit operator std::string() const override;
+
+    private:
+        Point center_cx_cy{0.0, 0.0};
+        Point dimensions_w_h{0.0, 0.0};
+    };
+
     class Document {
     public:
         template<typename SvgObject_T>
@@ -149,7 +162,7 @@ namespace Svg {
         void Render(std::ostream &out);
 
     private:
-        std::vector<std::variant<Circle, Polyline, Text>> svg_objects;
+        std::vector<std::variant<Circle, Polyline, Text, Rect>> svg_objects;
     };
 
 

@@ -57,6 +57,10 @@ std::string TransportCatalog::RenderMap() const {
     return map_renderer_.RenderMap();
 }
 
+std::string TransportCatalog::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem>& items) const {
+    return map_renderer_.RenderRoute(items);
+}
+
 int TransportCatalog::ComputeRoadRouteLength(
         const vector<string> &stops,
         const Descriptions::StopsDict &stops_dict

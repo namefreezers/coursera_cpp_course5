@@ -34,7 +34,9 @@ void TransportRouter::FillGraphWithStops(const Descriptions::StopsDict &stops_di
         vertices_info_[vertex_ids.in] = {stop_name};
         vertices_info_[vertex_ids.out] = {stop_name};
 
-        edges_info_.push_back(WaitEdgeInfo{});
+        edges_info_.emplace_back(WaitEdgeInfo{
+            .stop_name = stop_name,
+        });
         const Graph::EdgeId edge_id = graph_.AddEdge({
                                                              vertex_ids.out,
                                                              vertex_ids.in,
@@ -65,6 +67,10 @@ void TransportRouter::FillGraphWithBuses(const Descriptions::StopsDict &stops_di
                 edges_info_.push_back(BusEdgeInfo{
                         .bus_name = bus.name,
                         .span_count = finish_stop_idx - start_stop_idx,
+
+                        // Render Route
+                        .start_stop_idx = start_stop_idx,
+                        .finish_stop_idx = finish_stop_idx,
                 });
                 const Graph::EdgeId edge_id = graph_.AddEdge({
                                                                      start_vertex,
@@ -93,14 +99,18 @@ optional<TransportRouter::RouteInfo> TransportRouter::FindRoute(const string &st
         const auto &edge_info = edges_info_[edge_id];
         if (holds_alternative<BusEdgeInfo>(edge_info)) {
             const BusEdgeInfo &bus_edge_info = get<BusEdgeInfo>(edge_info);
-            route_info.items.push_back(RouteInfo::BusItem{
+            route_info.items.emplace_back(RouteInfo::BusItem{
                     .bus_name = bus_edge_info.bus_name,
                     .time = edge.weight,
                     .span_count = bus_edge_info.span_count,
+
+                    // Render Route
+                    .start_stop_idx = bus_edge_info.start_stop_idx,
+                    .finish_stop_idx = bus_edge_info.finish_stop_idx,
             });
         } else {
             const Graph::VertexId vertex_id = edge.from;
-            route_info.items.push_back(RouteInfo::WaitItem{
+            route_info.items.emplace_back(RouteInfo::WaitItem{
                     .stop_name = vertices_info_[vertex_id].stop_name,
                     .time = edge.weight,
             });

@@ -150,6 +150,28 @@ namespace Svg {
         return ss.str();
     }
 
+    // =============================== Rect ====================================
+
+    Rect &Rect::SetUpLeft(Point p) {
+        center_cx_cy = p;
+        return *this;
+    }
+
+    Rect &Rect::SetDimensions(Point p) {
+        dimensions_w_h = p;
+        return *this;
+    }
+
+    Rect::operator std::string() const {
+        std::stringstream ss;
+        ss << "<rect ";
+        ss << get_base_params_xml();
+        ss << "x=\"" << center_cx_cy.x << "\" y=\"" << center_cx_cy.y << "\" ";
+        ss << "width=\"" << dimensions_w_h.x << "\" height=\"" << dimensions_w_h.y << "\" ";
+        ss << "/>";
+        return ss.str();
+    }
+
     // =============================== Document ================================
 
     void Document::Render(std::ostream &out) {
@@ -163,7 +185,6 @@ namespace Svg {
         }
         out << "</svg>" << std::endl;
     }
-
 }
 
 
@@ -184,7 +205,7 @@ namespace Svg {
 //                Svg::Circle{}
 //                        .SetFillColor("white")
 //                        .SetRadius(6)
-//                        .SetCenter(point)
+//                        .SetUpLeft(point)
 //        );
 //    }
 //
