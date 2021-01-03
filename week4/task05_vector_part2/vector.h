@@ -256,25 +256,34 @@ public:
     iterator Insert(const_iterator pos, const T &elem) {
         try {
             std::cerr << "Vector Insert&: " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
+
             if (size_ == data_.Capacity()) {
                 int elem_idx = pos - begin();
-                Reserve(size_ == 0 ? 1 : size_ * 2);
-                pos = begin() + elem_idx;
-            }
-            auto pos_non_const = const_cast<iterator>(pos);
-            if (pos == end()) {
-                auto res_it = new(end()) T(elem);
-                ++size_;
-                return res_it;
-            }
+                Data<T> data2_(size_ == 0 ? 1 : size_ * 2);
+                std::uninitialized_move(data_.begin(), const_cast<iterator>(pos), data2_.begin());
+                std::uninitialized_move(const_cast<iterator>(pos), data_.end(), data2_.begin() + ((pos - data_.begin()) + 1));
+                auto new_elem_pos = new (data2_.begin() + (pos - data_.begin())) T(elem);
+                data_.Swap(data2_);
+                size_++;
+                return new_elem_pos;
 
-            new(end()) T(std::move(*(end() - 1)));
-            for (T *it = end() - 2; it >= pos; it--) {
-                *(it + 1) = std::move(*it);
+            } else {
+                if (pos == end()) {
+                    auto new_elem_pos = new(end()) T(elem);
+                    ++size_;
+                    return new_elem_pos;
+
+                } else {
+                    new(end()) T(std::move(*(end() - 1)));
+                    for (T *it = end() - 2; it >= pos; it--) {
+                        *(it + 1) = std::move(*it);
+                    }
+                    *const_cast<iterator>(pos) = elem;
+                    size_++;
+                    return const_cast<iterator>(pos);
+
+                }
             }
-            *pos_non_const = elem;
-            size_++;
-            return pos_non_const;
         } catch (...) {
             std::cerr << "Exception insert" << std::endl;
             return nullptr;
@@ -285,23 +294,31 @@ public:
         std::cerr << "Vector Insert&&: " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
         if (size_ == data_.Capacity()) {
             int elem_idx = pos - begin();
-            Reserve(size_ == 0 ? 1 : size_ * 2);
-            pos = begin() + elem_idx;
-        }
-        auto pos_non_const = const_cast<iterator>(pos);
-        if (pos == end()) {
-            auto res_it = new(end()) T(std::move(elem));
-            ++size_;
-            return res_it;
-        }
+            Data<T> data2_(size_ == 0 ? 1 : size_ * 2);
+            std::uninitialized_move(data_.begin(), const_cast<iterator>(pos), data2_.begin());
+            std::uninitialized_move(const_cast<iterator>(pos), data_.end(), data2_.begin() + ((pos - data_.begin()) + 1));
+            auto new_elem_pos = new (data2_.begin() + (pos - data_.begin())) T(std::move(elem));
+            data_.Swap(data2_);
+            size_++;
+            return new_elem_pos;
 
-        new(end()) T(std::move(*(end() - 1)));
-        for (T *it = end() - 2; it >= pos; it--) {
-            *(it + 1) = std::move(*it);
+        } else {
+            if (pos == end()) {
+                auto new_elem_pos = new(end()) T(std::move(elem));
+                ++size_;
+                return new_elem_pos;
+
+            } else {
+                new(end()) T(std::move(*(end() - 1)));
+                for (T *it = end() - 2; it >= pos; it--) {
+                    *(it + 1) = std::move(*it);
+                }
+                *const_cast<iterator>(pos) = std::move(elem);
+                size_++;
+                return const_cast<iterator>(pos);
+
+            }
         }
-        *pos_non_const = std::move(elem);
-        size_++;
-        return pos_non_const;
     }
 
     // Конструирует элемент по заданным аргументам конструктора перед pos
@@ -312,23 +329,32 @@ public:
 
         if (size_ == data_.Capacity()) {
             int elem_idx = pos - begin();
-            Reserve(size_ == 0 ? 1 : size_ * 2);
-            pos = begin() + elem_idx;
-        }
-        auto pos_non_const = const_cast<iterator>(pos);
-        if (pos == end()) {
-            auto res_it = new(end()) T(std::forward<Args>(args)...);
-            ++size_;
-            return res_it;
-        }
+            Data<T> data2_(size_ == 0 ? 1 : size_ * 2);
+            std::uninitialized_move(data_.begin(), const_cast<iterator>(pos), data2_.begin());
+            std::uninitialized_move(const_cast<iterator>(pos), data_.end(), data2_.begin() + ((pos - data_.begin()) + 1));
+            auto new_elem_pos = new (data2_.begin() + (pos - data_.begin())) T(std::forward<Args>(args)...);
+            data_.Swap(data2_);
+            size_++;
+            return new_elem_pos;
 
-        new(end()) T(*(end() - 1));
-        for (T *it = end() - 2; it >= pos; it--) {
-            *(it + 1) = std::move(*it);
+        } else {
+            if (pos == end()) {
+                auto new_elem_pos = new(end()) T(std::forward<Args>(args)...);
+                ++size_;
+                return new_elem_pos;
+
+            } else {
+                new(end()) T(std::move(*(end() - 1)));
+                for (T *it = end() - 2; it >= pos; it--) {
+                    *(it + 1) = std::move(*it);
+                }
+                std::destroy_at(const_cast<iterator>(pos));
+                new(const_cast<iterator>(pos)) T(std::forward<Args>(args)...);
+                size_++;
+                return const_cast<iterator>(pos);
+
+            }
         }
-        *pos_non_const = T(std::forward<Args>(args)...);
-        size_++;
-        return pos_non_const;
     }
 
     // Удаляет элемент на позиции pos

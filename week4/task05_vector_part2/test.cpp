@@ -86,12 +86,14 @@ ostream& operator<<(ostream& os, const X& x) {
 
 void TestInsert2() {
     Vector<X> v(3);
-    v.Insert(v.cbegin() + 1, X());
+    X new_x = X();
+    v.Insert(v.cbegin() + 1, new_x);
+    cout << v.Size() << endl;
     cout << v[0];
     cout << v[1];
     cout << v[2];
     cout << v[3];
-    cout << v[4];
+//    cout << v[4];
 }
 
 int main() {
