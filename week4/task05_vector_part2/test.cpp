@@ -43,11 +43,62 @@ void TestErase() {
     ASSERT(v.Size() == 2 && v[0] == 1 && v[1] == 3 && it == v.begin() + 1);
 };
 
+class X {
+public:
+    X() : id(static_id++), num(id) {
+        cout << "X Ctor(): " << id << ' ' << num << endl;
+    }
+
+    X(const X& other) : id(static_id++), num(other.num) {
+        cout << "X Ctor(&):" << id << ' ' << num << endl;
+    }
+
+    X(X&& other) : id(static_id++), num(other.num) {
+        cout << "X Ctor(&&):" << id << ' ' << num << endl;
+    }
+
+    X& operator=(const X& other) {
+        cout << "X operator=(&):" << id << ' ' << num << " = "  << other.id << ' ' << other.num << endl;
+        num = other.num;
+        return *this;
+    }
+
+    X& operator=(X&& other) {
+        cout << "X operator=(&&):" << id << ' ' << num << " = "  << other.id << ' ' << other.num << endl;
+        num = other.num;
+        return *this;
+    }
+
+    ~X() {
+        cout << "X Dtor():" << id << ' ' << num << endl;
+    }
+
+    static int static_id;
+    int id;
+    int num;
+};
+
+int X::static_id = 0;
+
+ostream& operator<<(ostream& os, const X& x) {
+    return os << x.id << ' ' << x.num << endl;
+}
+
+void TestInsert2() {
+    Vector<X> v(3);
+    v.Insert(v.cbegin() + 1, X());
+    cout << v[0];
+    cout << v[1];
+    cout << v[2];
+    cout << v[3];
+    cout << v[4];
+}
 
 int main() {
     TestRunner tr;
     RUN_TEST(tr, TestInsert);
     RUN_TEST(tr, TestEmplace);
     RUN_TEST(tr, TestErase);
+    RUN_TEST(tr, TestInsert2);
     return 0;
 }

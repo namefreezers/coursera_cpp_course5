@@ -5,19 +5,25 @@
 template<typename T>
 class Data {
 public:
-    Data() {}
+    Data() {
+        std::cerr << "Data Ctor 1: " << std::endl;
+    }
 
     Data(size_t capacity) : data_ptr_(static_cast<T *>(operator new(capacity * sizeof(T)))), capacity_(capacity) {
-        std::cerr << "Data Ctor: " << capacity << " ptr: " << begin() << std::endl;
+        std::cerr << "Data Ctor 2: " << capacity << " ptr: " << begin() << std::endl;
     }
 
     ~Data() {
+        std::cerr << "Data Dtor: ptr: " << data_ptr_ << std::endl;
+
         operator delete(data_ptr_);
     }
 
     Data(const Data &) = delete;
 
     Data(Data &&other) {
+        std::cerr << "Data Ctor 3: " << other.capacity << " ptr: " << other.begin() << std::endl;
+
         std::swap(data_ptr_, other.data_ptr_);
         std::swap(capacity_, other.capacity_);
     }
@@ -25,6 +31,8 @@ public:
     Data &operator=(const Data &) = delete;
 
     Data &operator=(Data &&other) noexcept {
+        std::cerr << "Data operator=&&: " << other.capacity_ << " ptr: " << other.begin() << std::endl;
+
         std::swap(data_ptr_, other.data_ptr_);
         std::swap(capacity_, other.capacity_);
         return *this;
@@ -41,9 +49,11 @@ public:
 
     // @formatter:off
     T *begin() { return data_ptr_; }
+
     T *end() { return data_ptr_ + capacity_; }
 
     const T *begin() const { return data_ptr_; }
+
     const T *end() const { return data_ptr_ + capacity_; }
     // @formatter:on
 
@@ -56,30 +66,42 @@ template<typename T>
 class Vector {
 
 public:
-    Vector() = default;
+//    Vector() = default;
+    Vector() {
+        std::cerr << "Vector Ctor 1: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+    }
 
     Vector(size_t n) : data_(n) {
         std::uninitialized_default_construct_n(data_.begin(), n);
         size_ = n;
 
-        std::cerr << "Vector Ctor: " << size_ << ' ' << Capacity() << " ptr: " << begin() << std::endl;
+        std::cerr << "Vector Ctor 2: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
     }
 
     Vector(const Vector &other) : data_(other.size_) {
         std::uninitialized_copy(other.begin(), other.end(), data_.begin());
         size_ = other.size_;
+
+        std::cerr << "Vector Ctor 3: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
     }
 
     Vector(Vector &&other) {
         data_.Swap(other.data_);
         std::swap(size_, other.size_);
+
+        std::cerr << "Vector Ctor 4: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
     }
 
     ~Vector() {
+        std::cerr << "Vector Dtor: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+
         std::destroy(this->begin(), this->end());
     }
 
     Vector &operator=(const Vector &other) {
+        std::cerr << "Vector operator=&: " << other.size_ << ' ' << other.Capacity() << " ptr: " << other.begin()
+                  << std::endl;
+
         if (data_.Capacity() < other.size_) {
             Data<T> data2_(other.size_);
             std::uninitialized_copy(other.begin(), other.end(), data2_.begin());
@@ -99,13 +121,17 @@ public:
     }
 
     Vector &operator=(Vector &&other) noexcept {
+        std::cerr << "Vector operator=&&: " << other.size_ << ' ' << other.Capacity() << " ptr: " << other.begin()
+                  << std::endl;
+
         data_.Swap(other.data_);
         std::swap(size_, other.size_);
         return *this;
     }
 
     void Reserve(size_t n) {
-        std::cerr << "Vector Reserve " << size_ << ' ' << Capacity() << ' n: ' << n << std::endl;
+        std::cerr << "Vector Reserve " << size_ << ' ' << data_.Capacity() << " n: " << n << std::endl;
+
         if (n > data_.Capacity()) {
             Data<T> data2_(n);
             if (size_ > 0) {
@@ -117,7 +143,8 @@ public:
     }
 
     void Resize(size_t n) {
-        std::cerr << "Vector Resize " << size_ << ' ' << Capacity() << ' n: ' << n << std::endl;
+        std::cerr << "Vector Resize " << size_ << ' ' << data_.Capacity() << " n: " << n << std::endl;
+
         if (n < size_) {
             std::destroy(this->begin() + n, this->end());
         } else {
@@ -128,6 +155,8 @@ public:
     }
 
     void PushBack(const T &elem) {
+        std::cerr << "Vector PushBack&: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+
         if (size_ == data_.Capacity()) {
             Reserve(size_ == 0 ? 1 : size_ * 2);
         }
@@ -136,6 +165,8 @@ public:
     }
 
     void PushBack(T &&elem) {
+        std::cerr << "Vector PushBack&&: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+
         if (size_ == data_.Capacity()) {
             Reserve(size_ == 0 ? 1 : size_ * 2);
         }
@@ -145,6 +176,8 @@ public:
 
     template<typename ... Args>
     T &EmplaceBack(Args &&... args) {
+        std::cerr << "Vector EmplaceBack&&: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+
         if (size_ == data_.Capacity()) {
             Reserve(size_ == 0 ? 1 : size_ * 2);
         }
@@ -154,6 +187,8 @@ public:
     }
 
     void PopBack() {
+        std::cerr << "Vector PopBack: " << size_ << ' ' << data_.Capacity() << " ptr: " << data_.begin() << std::endl;
+
         std::destroy_at(this->end() - 1);
         size_--;
     }
@@ -180,26 +215,47 @@ public:
 
 
     // В данной части задачи реализуйте дополнительно эти функции:
-    // @formatter:off
+    // @formatter: off
     using iterator = T *;
     using const_iterator = const T *;
 
-    iterator begin() noexcept { return data_.begin(); }
-    iterator end() noexcept { return data_.begin() + size_; }
+    iterator begin() noexcept {
+        std::cerr << "begin(): " << data_.begin() << std::endl;
+        return data_.begin();
+    }
 
-    const_iterator begin() const noexcept { return data_.begin(); }
-    const_iterator end() const noexcept { return data_.begin() + size_; }
+    iterator end() noexcept {
+        std::cerr << "end(): " << data_.begin() + size_ << std::endl;
+        return data_.begin() + size_;
+    }
+
+    const_iterator begin() const noexcept {
+        std::cerr << "const begin(): " << data_.begin() << std::endl;
+        return data_.begin();
+    }
+
+    const_iterator end() const noexcept {
+        std::cerr << "const end(): " << data_.begin() + size_ << std::endl;
+        return data_.begin() + size_;
+    }
 
     // Тут должна быть такая же реализация, как и для константных версий begin/end
-    const_iterator cbegin() const noexcept { return data_.begin(); }
-    const_iterator cend() const noexcept { return data_.begin() + size_; }
-    // @formatter:on
+    const_iterator cbegin() const noexcept {
+        std::cerr << "const cbegin(): " << data_.begin() << std::endl;
+        return data_.begin();
+    }
+
+    const_iterator cend() const noexcept {
+        std::cerr << "const cend(): " << data_.begin() + size_ << std::endl;
+        return data_.begin() + size_;
+    }
+    // @formatter: on
 
     // Вставляет элемент перед pos
     // Возвращает итератор на вставленный элемент
     iterator Insert(const_iterator pos, const T &elem) {
         try {
-            std::cerr << "Vector insert const& " << size_ << ' ' << Capacity() << ' ' << pos - begin() << std::endl;
+            std::cerr << "Vector Insert&: " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
             if (size_ == data_.Capacity()) {
                 int elem_idx = pos - begin();
                 Reserve(size_ == 0 ? 1 : size_ * 2);
@@ -226,7 +282,7 @@ public:
     }
 
     iterator Insert(const_iterator pos, T &&elem) {
-        std::cerr << "Vector insert && " << size_ << ' ' << Capacity() << ' ' << pos - begin() << std::endl;
+        std::cerr << "Vector Insert&&: " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
         if (size_ == data_.Capacity()) {
             int elem_idx = pos - begin();
             Reserve(size_ == 0 ? 1 : size_ * 2);
@@ -252,6 +308,8 @@ public:
     // Возвращает итератор на вставленный элемент
     template<typename ... Args>
     iterator Emplace(const_iterator pos, Args &&... args) {
+        std::cerr << "Vector Emplace pos && " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
+
         if (size_ == data_.Capacity()) {
             int elem_idx = pos - begin();
             Reserve(size_ == 0 ? 1 : size_ * 2);
@@ -276,6 +334,7 @@ public:
     // Удаляет элемент на позиции pos
     // Возвращает итератор на элемент, следующий за удалённым
     iterator Erase(const_iterator pos) {
+        std::cerr << "Vector Erase: " << size_ << ' ' << data_.Capacity() << ' ' << pos - data_.begin() << std::endl;
         for (auto it = const_cast<iterator>(pos); it + 1 < end(); it++) {
             *it = std::move(*(it + 1));
         }
