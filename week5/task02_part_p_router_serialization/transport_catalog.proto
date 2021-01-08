@@ -15,7 +15,66 @@ message Stop {
   repeated string bus_names = 2;
 }
 
+// ============================================================================================
+// ============================================================================================
+// ============================================================================================
+
+message RoutingSettings {
+  int32 bus_wait_time = 1;
+  double bus_velocity = 2;
+}
+
+message GraphEdge {
+  uint64 from = 1;
+  uint64 to = 2;
+  double weight = 3;
+}
+
+message IncidenceList {
+  repeated uint64 incident_vertexes = 1;
+}
+
+message BusGraph {
+  repeated GraphEdge edges = 1;
+  repeated IncidenceList incidence_lists = 2;
+}
+
+message StopsVertexIds {
+  string stop_name = 1;
+  uint64 in = 2;
+  uint64 out = 3;
+}
+
+message VertexInfo {
+  string stop_name = 1;
+}
+
+enum EdgeType {
+  BUS = 0;
+  WAIT = 1;
+}
+
+message BusEdgeInfo {
+  string bus_name = 1;
+  uint64 span_count = 2;
+}
+
+message TransportRouter {
+  RoutingSettings routing_settings = 1;
+  BusGraph bus_graph = 2;
+  repeated StopsVertexIds stops_vertex_ids = 3;
+  repeated VertexInfo vertices_info = 4;
+  repeated EdgeType edge_types = 5;
+  repeated BusEdgeInfo bus_edge_infos = 6;
+
+}
+
+// ============================================================================================
+// ============================================================================================
+// ============================================================================================
+
 message TransportCatalog {
   repeated Stop stops = 1;
   repeated Bus buses = 2;
+  TransportRouter router = 3;
 }

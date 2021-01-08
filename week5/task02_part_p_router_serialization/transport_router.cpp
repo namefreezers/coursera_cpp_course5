@@ -17,6 +17,49 @@ TransportRouter::TransportRouter(const Descriptions::StopsDict &stops_dict,
     router_ = std::make_unique<Router>(graph_);
 }
 
+TransportRouter::TransportRouter(const Serialization::TransportRouter &serialization_router) {
+//    RoutingSettings routing_settings = 1;
+//    BusGraph bus_graph = 2;
+//    repeated StopsVertexIds stops_vertex_ids = 3;
+//    repeated VertexInfo vertices_info = 4;
+//    repeated EdgeType edge_types = 5;
+//    repeated BusEdgeInfo bus_edge_infos = 6;
+    routing_settings_ = {serialization_router.routing_settings().bus_wait_time(), serialization_router.routing_settings().bus_velocity()};
+    graph_ = BusGraph(serialization_router.bus_graph());
+
+    stops_vertex_ids_.reserve(serialization_router.stops_vertex_ids_size());
+    for (int stop_vertex_idx = 0; stop_vertex_idx < serialization_router.stops_vertex_ids_size(); ++stop_vertex_idx) {
+        const Serialization::StopsVertexIds& serialization_stop_vertex_id = serialization_router.stops_vertex_ids(stop_vertex_idx);
+
+        stops_vertex_ids_[serialization_stop_vertex_id.stop_name()] = {serialization_stop_vertex_id.in(), serialization_stop_vertex_id.out()};
+    }
+
+    vertices_info_.reserve(serialization_router.vertices_info_size());
+    for (int vertex_info_idx = 0; vertex_info_idx < serialization_router.vertices_info_size(); ++vertex_info_idx) {
+        const Serialization::VertexInfo& serialization_vertex_info = serialization_router.vertices_info(vertex_info_idx);
+
+        vertices_info_.push_back({serialization_vertex_info.stop_name()});
+    }
+
+    edges_info_.reserve(serialization_router.edge_types_size());
+    int bus_edge_idx = 0;
+    for (int edge_type_idx = 0; edge_type_idx < serialization_router.edge_types_size(); ++edge_type_idx) {
+        const Serialization::EdgeType& serialization_edge_type = serialization_router.edge_types(edge_type_idx);
+
+        switch (serialization_edge_type) {
+            case Serialization::EdgeType::BUS:
+                edges_info_.emplace_back(BusEdgeInfo{serialization_router.bus_edge_infos(bus_edge_idx).bus_name(), serialization_router.bus_edge_infos(bus_edge_idx).span_count()});
+                bus_edge_idx++;
+                break;
+            case Serialization::EdgeType::WAIT:
+                edges_info_.emplace_back(WaitEdgeInfo{});
+                break;
+        }
+    }
+
+    router_ = std::make_unique<Router>(graph_);
+}
+
 TransportRouter::RoutingSettings TransportRouter::MakeRoutingSettings(const Json::Dict &json) {
     return {
             json.at("bus_wait_time").AsInt(),
@@ -120,4 +163,42 @@ optional<TransportRouter::RouteInfo> TransportRouter::FindRoute(const string &st
     // but we do not expect exceptions in normal workflow
     router_->ReleaseRoute(route->id);
     return route_info;
+}
+
+Serialization::TransportRouter TransportRouter::SerializeRouter() const {
+    Serialization::TransportRouter serialization_router;
+
+    *serialization_router.mutable_routing_settings() = routing_settings_.SerializeRoutingSettings();
+
+    *serialization_router.mutable_bus_graph() = graph_.SerializeBusGraph();
+
+    for (const auto&[stop_name, cur_stop_vertex_ids] : stops_vertex_ids_) {
+        Serialization::StopsVertexIds serialization_stop_vertex_id;
+        serialization_stop_vertex_id.set_stop_name(stop_name);
+        serialization_stop_vertex_id.set_in(cur_stop_vertex_ids.in);
+        serialization_stop_vertex_id.set_out(cur_stop_vertex_ids.out);
+
+        *serialization_router.add_stops_vertex_ids() = serialization_stop_vertex_id;
+    }
+
+    for (const auto &vertex_info : vertices_info_) {
+        Serialization::VertexInfo serialization_vertex_info;
+        serialization_vertex_info.set_stop_name(vertex_info.stop_name);
+        *serialization_router.add_vertices_info() = serialization_vertex_info;
+    }
+
+    for (const EdgeInfo &edge_info : edges_info_) {
+        if (holds_alternative<BusEdgeInfo>(edge_info)) {
+            serialization_router.add_edge_types(Serialization::EdgeType::BUS);
+
+            Serialization::BusEdgeInfo serialization_bus_edge_info;
+            serialization_bus_edge_info.set_bus_name(get<BusEdgeInfo>(edge_info).bus_name);
+            serialization_bus_edge_info.set_span_count(get<BusEdgeInfo>(edge_info).span_count);
+            *serialization_router.add_bus_edge_infos() = serialization_bus_edge_info;
+        } else {
+            serialization_router.add_edge_types(Serialization::EdgeType::WAIT);
+        }
+    }
+
+    return serialization_router;
 }

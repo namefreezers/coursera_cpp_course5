@@ -5,6 +5,8 @@
 #include "json.h"
 #include "router.h"
 
+#include "transport_catalog.pb.h"
+
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -18,6 +20,8 @@ public:
     TransportRouter(const Descriptions::StopsDict &stops_dict,
                     const Descriptions::BusesDict &buses_dict,
                     const Json::Dict &routing_settings_json);
+
+    explicit TransportRouter(const Serialization::TransportRouter& serialization_router);
 
     struct RouteInfo {
         double total_time;
@@ -43,10 +47,19 @@ public:
 
     std::optional<RouteInfo> FindRoute(const std::string &stop_from, const std::string &stop_to) const;
 
+    Serialization::TransportRouter SerializeRouter() const;
+
 private:
     struct RoutingSettings {
         int bus_wait_time;  // in minutes
         double bus_velocity;  // km/h
+
+        Serialization::RoutingSettings SerializeRoutingSettings() const {
+            Serialization::RoutingSettings serialization_routingSettings;
+            serialization_routingSettings.set_bus_wait_time(bus_wait_time);
+            serialization_routingSettings.set_bus_velocity(bus_velocity);
+            return serialization_routingSettings;
+        }
     };
 
     static RoutingSettings MakeRoutingSettings(const Json::Dict &json);

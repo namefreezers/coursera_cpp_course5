@@ -61,6 +61,8 @@ TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serial
         cur_bus_.road_route_length = cur_serialization_bus.road_route_length();
         cur_bus_.geo_route_length = cur_serialization_bus.geo_route_length();
     }
+
+    router_ = make_unique<TransportRouter>(serialization_base.router());
 }
 
 const TransportCatalog::Stop *TransportCatalog::GetStop(const string &name) const {
@@ -106,6 +108,8 @@ Serialization::TransportCatalog TransportCatalog::SerializeBase() const {
 
         *serialization_base.add_buses() = serialization_bus;
     }
+
+    *serialization_base.mutable_router() = router_->SerializeRouter();
 
     return serialization_base;
 }
