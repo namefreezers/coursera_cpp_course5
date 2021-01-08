@@ -5,6 +5,8 @@
 #include "transport_catalog.h"
 #include "utils.h"
 
+#include "transport_catalog.pb.h"
+
 #include <iostream>
 #include <fstream>
 #include <string_view>
@@ -40,12 +42,19 @@ int main(int argc, const char *argv[]) {
         );
 
         // Save DB
+        Serialization::TransportCatalog serialization_base = db.SerializeBase();
+        ofstream ofstream_file(input_map.at("serialization_settings").AsMap().at("file").AsString(), ios::binary);
+        serialization_base.SerializeToOstream(&ofstream_file);
 
     } else if (mode == "process_requests") {
         const auto input_doc = Json::Load(cin);
         const auto &input_map = input_doc.GetRoot().AsMap();
 
-        // Load DB
+        ifstream ifstream_file(input_map.at("serialization_settings").AsMap().at("file").AsString(), ios::binary);
+        Serialization::TransportCatalog serialization_base;
+        serialization_base.ParseFromIstream(&ifstream_file);
+
+        const TransportCatalog db(serialization_base);
 
         Json::PrintValue(
                 Requests::ProcessAll(db, input_map.at("stat_requests").AsArray()),

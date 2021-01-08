@@ -8,11 +8,11 @@ find_package(Protobuf REQUIRED)
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-#protobuf_generate_cpp(
-#        PROTO_SRCS
-#        PROTO_HDRS
-#        protos/..
-#)
+protobuf_generate_cpp(
+        PROTO_SRCS
+        PROTO_HDRS
+        transport_catalog.proto
+)
 
 
 #find_path(TEST_RUNNER_PATH test_runner.h)

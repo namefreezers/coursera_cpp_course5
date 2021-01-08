@@ -34,9 +34,7 @@ void TransportRouter::FillGraphWithStops(const Descriptions::StopsDict &stops_di
         vertices_info_[vertex_ids.in] = {stop_name};
         vertices_info_[vertex_ids.out] = {stop_name};
 
-        edges_info_.emplace_back(WaitEdgeInfo{
-            .stop_name = stop_name,
-        });
+        edges_info_.emplace_back(WaitEdgeInfo{});
         const Graph::EdgeId edge_id = graph_.AddEdge({
                                                              vertex_ids.out,
                                                              vertex_ids.in,

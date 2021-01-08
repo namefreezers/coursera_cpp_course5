@@ -7,6 +7,8 @@
 #include "transport_router.h"
 #include "utils.h"
 
+#include "transport_catalog.pb.h"
+
 #include <optional>
 #include <set>
 #include <string>
@@ -35,6 +37,8 @@ private:
 public:
     TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json);
 
+    TransportCatalog(const Serialization::TransportCatalog& serialization_base);
+
     const Stop *GetStop(const std::string &name) const;
 
     const Bus *GetBus(const std::string &name) const;
@@ -44,6 +48,8 @@ public:
     std::string RenderMap() const;
 
     std::string RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem>& items) const;
+
+    Serialization::TransportCatalog SerializeBase() const;
 
 private:
 

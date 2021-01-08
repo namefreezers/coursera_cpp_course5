@@ -41,6 +41,28 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
     router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
 }
 
+TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serialization_base) {
+    for (int i = 0; i < serialization_base.stops_size(); ++i) {
+        const Serialization::Stop &cur_serialization_stop = serialization_base.stops(i);
+
+        Stop &cur_stop_ = stops_[cur_serialization_stop.stop_name()];
+        for (int bus_name_idx = 0; bus_name_idx < cur_serialization_stop.bus_names_size(); ++bus_name_idx) {
+            cur_stop_.bus_names.insert(cur_stop_.bus_names.end(), cur_serialization_stop.bus_names(bus_name_idx));
+        }
+    }
+
+    for (int i = 0; i < serialization_base.buses_size(); ++i) {
+        const Serialization::Bus &cur_serialization_bus = serialization_base.buses(i);
+
+        Bus &cur_bus_ = buses_[cur_serialization_bus.bus_name()];
+
+        cur_bus_.stop_count = cur_serialization_bus.stop_count();
+        cur_bus_.unique_stop_count = cur_serialization_bus.unique_stop_count();
+        cur_bus_.road_route_length = cur_serialization_bus.road_route_length();
+        cur_bus_.geo_route_length = cur_serialization_bus.geo_route_length();
+    }
+}
+
 const TransportCatalog::Stop *TransportCatalog::GetStop(const string &name) const {
     return GetValuePointer(stops_, name);
 }
@@ -57,8 +79,35 @@ std::string TransportCatalog::RenderMap() const {
     return map_renderer_.RenderMap();
 }
 
-std::string TransportCatalog::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem>& items) const {
+std::string TransportCatalog::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
     return map_renderer_.RenderRoute(items);
+}
+
+Serialization::TransportCatalog TransportCatalog::SerializeBase() const {
+    Serialization::TransportCatalog serialization_base;
+
+    for (const auto&[stop_name, stop] : stops_) {
+        Serialization::Stop serialization_stop;
+        serialization_stop.set_stop_name(stop_name);
+        for (const auto &bus_name: stop.bus_names) {
+            serialization_stop.add_bus_names(bus_name);
+        }
+
+        *serialization_base.add_stops() = serialization_stop;
+    }
+
+    for (const auto&[bus_name, bus] : buses_) {
+        Serialization::Bus serialization_bus;
+        serialization_bus.set_bus_name(bus_name);
+        serialization_bus.set_stop_count(bus.stop_count);
+        serialization_bus.set_unique_stop_count(bus.unique_stop_count);
+        serialization_bus.set_road_route_length(bus.road_route_length);
+        serialization_bus.set_geo_route_length(bus.geo_route_length);
+
+        *serialization_base.add_buses() = serialization_bus;
+    }
+
+    return serialization_base;
 }
 
 int TransportCatalog::ComputeRoadRouteLength(
