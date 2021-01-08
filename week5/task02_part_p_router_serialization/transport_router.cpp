@@ -57,7 +57,7 @@ TransportRouter::TransportRouter(const Serialization::TransportRouter &serializa
         }
     }
 
-    router_ = std::make_unique<Router>(graph_);
+    router_ = std::make_unique<Router>(graph_, serialization_router.router());
 }
 
 TransportRouter::RoutingSettings TransportRouter::MakeRoutingSettings(const Json::Dict &json) {
@@ -199,6 +199,8 @@ Serialization::TransportRouter TransportRouter::SerializeRouter() const {
             serialization_router.add_edge_types(Serialization::EdgeType::WAIT);
         }
     }
+
+    *serialization_router.mutable_router() = router_->SerializeRouter();
 
     return serialization_router;
 }

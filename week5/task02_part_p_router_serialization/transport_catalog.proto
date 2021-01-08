@@ -59,6 +59,17 @@ message BusEdgeInfo {
   uint64 span_count = 2;
 }
 
+message RoutesInternalData {
+  int32 i = 1;
+  int32 j = 2;
+  double weight = 3;
+  uint64 optional_prev_edge = 4;
+}
+
+message Router {
+  repeated RoutesInternalData routes_internal_data = 1;
+}
+
 message TransportRouter {
   RoutingSettings routing_settings = 1;
   BusGraph bus_graph = 2;
@@ -67,6 +78,7 @@ message TransportRouter {
   repeated EdgeType edge_types = 5;
   repeated BusEdgeInfo bus_edge_infos = 6;
 
+  Router router = 7;
 }
 
 // ============================================================================================

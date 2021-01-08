@@ -21,6 +21,8 @@ namespace Graph {
     public:
         Router(const Graph &graph);
 
+        Router(const Graph &graph, const Serialization::Router &serialization_router);
+
         using RouteId = uint64_t;
 
         struct RouteInfo {
@@ -34,6 +36,8 @@ namespace Graph {
         EdgeId GetRouteEdge(RouteId route_id, size_t edge_idx) const;
 
         void ReleaseRoute(RouteId route_id);
+
+        Serialization::Router SerializeRouter() const;
 
     private:
         const Graph &graph_;
@@ -105,6 +109,20 @@ namespace Graph {
         }
     }
 
+
+    template<typename Weight>
+    Router<Weight>::Router(const Graph &graph, const Serialization::Router &serialization_router)
+            : graph_(graph),
+              routes_internal_data_(graph.GetVertexCount(), std::vector<std::optional<RouteInternalData>>(graph.GetVertexCount())) {
+        for (int i = 0; i < serialization_router.routes_internal_data_size(); ++i) {
+            const Serialization::RoutesInternalData &serialization_internal_data = serialization_router.routes_internal_data(i);
+            routes_internal_data_.at(serialization_internal_data.i()).at(serialization_internal_data.j()) = RouteInternalData{
+                    serialization_internal_data.weight(),
+                    serialization_internal_data.optional_prev_edge() == -1 ? std::nullopt : std::optional<EdgeId>(serialization_internal_data.optional_prev_edge())
+            };
+        }
+    }
+
     template<typename Weight>
     std::optional<typename Router<Weight>::RouteInfo> Router<Weight>::BuildRoute(VertexId from, VertexId to) const {
         const auto &route_internal_data = routes_internal_data_[from][to];
@@ -134,6 +152,27 @@ namespace Graph {
     template<typename Weight>
     void Router<Weight>::ReleaseRoute(RouteId route_id) {
         expanded_routes_cache_.erase(route_id);
+    }
+
+    template<typename Weight>
+    Serialization::Router Router<Weight>::SerializeRouter() const {
+        Serialization::Router serialization_router;
+        for (int i = 0; i < graph_.GetVertexCount(); ++i) {
+            for (int j = 0; j < graph_.GetVertexCount(); ++j) {
+                if (routes_internal_data_.at(i).at(j).has_value()) {
+                    Serialization::RoutesInternalData serialization_routes_internal_data;
+                    serialization_routes_internal_data.set_i(i);
+                    serialization_routes_internal_data.set_j(j);
+                    serialization_routes_internal_data.set_weight(routes_internal_data_.at(i).at(j)->weight);
+                    serialization_routes_internal_data.set_optional_prev_edge(routes_internal_data_.at(i).at(j)->prev_edge.has_value() ?
+                                                                              *routes_internal_data_.at(i).at(j)->prev_edge : -1);
+
+                    *serialization_router.add_routes_internal_data() = serialization_routes_internal_data;
+                }
+            }
+        }
+
+        return serialization_router;
     }
 
 }
