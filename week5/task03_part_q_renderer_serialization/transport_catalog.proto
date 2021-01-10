@@ -57,6 +57,10 @@ enum EdgeType {
 message BusEdgeInfo {
   string bus_name = 1;
   uint64 span_count = 2;
+
+  // Render Route
+  uint64 start_stop_idx = 3;
+  uint64 finish_stop_idx = 4;
 }
 
 message RoutesInternalData {
@@ -85,8 +89,93 @@ message TransportRouter {
 // ============================================================================================
 // ============================================================================================
 
+message BusDescForRender {
+  string bus_name = 1;
+  repeated string stops = 2;
+  bool is_roundtrip = 3;
+}
+
+message StopDescForRender {
+  string stop_name = 1;
+  double latitude = 2;
+  double longitude = 3;
+}
+
+message Point {
+  double x = 1;
+  double y = 2;
+}
+
+message Color {
+  bool present = 1;
+  string color = 2;
+}
+
+message RenderSettings {
+  double width = 1;
+  double height = 2;
+  double padding = 3;
+  double stop_radius = 4;
+  double line_width = 5;
+  int32 stop_label_font_size = 6;
+  Point stop_label_offset = 7;
+  Color underlayer_color = 8;
+  double underlayer_width = 9;
+  repeated Color color_palette = 10;
+  int32 bus_label_font_size = 11;
+  Point bus_label_offset = 12;
+  repeated string layers = 13;
+  double outer_margin = 14;
+}
+
+message PointConverterIntermediateStops {
+  repeated Point points_from = 1;
+  repeated Point points_to = 2;
+}
+
+message PointConverterFlattenCompressRoutes {
+  double padding = 1;
+  double height = 2;
+
+  double x_step = 3;
+  double y_step = 4;
+
+  repeated Point x_stop_coord_idx_from = 5;
+  repeated int32 x_stop_coord_idx_to = 6;
+
+  repeated Point y_stop_coord_idx_from = 7;
+  repeated int32 y_stop_coord_idx_to = 8;
+}
+
+message PointConverterIntermFlattenCompr {
+  PointConverterIntermediateStops conv_intermediate = 1;
+  PointConverterFlattenCompressRoutes conv_flatten_compress = 2;
+}
+
+message BusLineColorEntry {
+  string bus_name = 1;
+  int32 color_idx = 2;
+}
+
+message MapRenderer {
+  repeated BusDescForRender buses_for_render_ = 1;
+  repeated StopDescForRender stops_for_render_ = 2;
+
+  RenderSettings render_settings = 3;
+
+  PointConverterIntermFlattenCompr converter = 4;
+
+  repeated BusLineColorEntry bus_line_colors = 5;
+}
+
+// ============================================================================================
+// ============================================================================================
+// ============================================================================================
+
 message TransportCatalog {
   repeated Stop stops = 1;
   repeated Bus buses = 2;
-  TransportRouter router = 3;
+
+  MapRenderer map_renderer = 3;
+  TransportRouter router = 4;
 }

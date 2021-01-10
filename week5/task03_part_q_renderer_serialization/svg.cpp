@@ -51,6 +51,9 @@ namespace Svg {
                                                                  Color(render_settings_json.AsString()) :
                                                                  Color(RgbA(render_settings_json.AsArray()))) {}
 
+    Color::Color(const Serialization::Color &serialization_color) : opt_color_str(serialization_color.present() ?
+                                                                                  std::optional<std::string>(serialization_color.color()) :
+                                                                                  nullopt) {}
 
     Color::operator string() const {
         return opt_color_str ? *opt_color_str : "none";
@@ -73,9 +76,9 @@ namespace Svg {
     Circle::operator std::string() const {
         std::stringstream ss;
         ss << "<circle ";
-        ss << get_base_params_xml();
         ss << "cx=\"" << center_cx_cy.x << "\" cy=\"" << center_cx_cy.y << "\" ";
         ss << "r=\"" << radius_r << "\" ";
+        ss << get_base_params_xml();
         ss << "/>";
         return ss.str();
     }
@@ -90,12 +93,13 @@ namespace Svg {
     Polyline::operator std::string() const {
         std::stringstream ss;
         ss << "<polyline ";
-        ss << get_base_params_xml();
         ss << "points=\"";
         for (const Point p : points) {
             ss << p.x << "," << p.y << " ";
         }
-        ss << "\" />";
+        ss << "\" ";
+        ss << get_base_params_xml();
+        ss << "/>";
         return ss.str();
     }
 
@@ -134,7 +138,6 @@ namespace Svg {
     Text::operator std::string() const {
         std::stringstream ss;
         ss << "<text ";
-        ss << get_base_params_xml();
         ss << "x=\"" << x_y.x << "\" y=\"" << x_y.y << "\" ";
         ss << "dx=\"" << dx_dy.x << "\" dy=\"" << dx_dy.y << "\" ";
         ss << "font-size=\"" << font_size << "\" ";
@@ -144,6 +147,7 @@ namespace Svg {
         if (font_weight) {
             ss << "font-weight=\"" << *font_weight << "\" ";
         }
+        ss << get_base_params_xml();
         ss << ">";
         ss << text;
         ss << "</text>";
@@ -165,9 +169,9 @@ namespace Svg {
     Rect::operator std::string() const {
         std::stringstream ss;
         ss << "<rect ";
-        ss << get_base_params_xml();
         ss << "x=\"" << center_cx_cy.x << "\" y=\"" << center_cx_cy.y << "\" ";
         ss << "width=\"" << dimensions_w_h.x << "\" height=\"" << dimensions_w_h.y << "\" ";
+        ss << get_base_params_xml();
         ss << "/>";
         return ss.str();
     }

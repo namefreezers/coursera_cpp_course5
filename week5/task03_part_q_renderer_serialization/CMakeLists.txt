@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.17)
-project(task02_part_p_router_serialization)
+project(task03_part_q_renderer_serialization)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -27,7 +27,7 @@ protobuf_generate_cpp(
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -fno-omit-frame-pointer")
 
 
-add_executable(task02_part_p_router_serialization ${PROTO_SRCS} ${PROTO_HDRS} descriptions.cpp json.cpp main.cpp map_renderer.cpp requests.cpp serialization.cpp
+add_executable(task03_part_q_renderer_serialization ${PROTO_SRCS} ${PROTO_HDRS} descriptions.cpp json.cpp main.cpp map_renderer.cpp requests.cpp serialization.cpp
         sphere.cpp svg.cpp transport_catalog.cpp transport_router.cpp utils.cpp)
 
-target_link_libraries(task02_part_p_router_serialization ${Protobuf_LIBRARIES})
+target_link_libraries(task03_part_q_renderer_serialization ${Protobuf_LIBRARIES})

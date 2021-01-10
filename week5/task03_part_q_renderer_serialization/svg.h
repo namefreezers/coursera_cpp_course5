@@ -9,6 +9,8 @@
 
 #include "json.h"
 
+#include "transport_catalog.pb.h"
+
 namespace Svg {
     struct Point {
         double x, y;
@@ -35,7 +37,15 @@ namespace Svg {
 
         Color(const Json::Node &render_settings_json);
 
+        explicit Color(const Serialization::Color& serialization_color);
+
         explicit operator std::string() const;
+
+//        #include "map_renderer.h"
+//        friend Serialization::RenderSettings RenderSettings::SerializeRenderSettings() const;  // does not work
+        const std::optional<std::string>& get_underlying_value() const {
+            return opt_color_str;
+        }
 
     private:
         std::optional<std::string> opt_color_str;

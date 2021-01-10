@@ -95,14 +95,14 @@ namespace Requests {
             }
             dict["items"] = move(items);
 
-// TODO: uncomment
-//            vector<TransportRouter::RouteInfo::BusItem> bus_items;
-//            for (const auto &item : route->items) {
-//                if (holds_alternative<TransportRouter::RouteInfo::BusItem>(item)) {
-//                    bus_items.push_back(get<TransportRouter::RouteInfo::BusItem>(item));
-//                }
-//            }
-//            dict["map"] = Json::Node(EscapeCharacters(db.RenderRoute(bus_items)));
+
+            vector<TransportRouter::RouteInfo::BusItem> bus_items;
+            for (const auto &item : route->items) {
+                if (holds_alternative<TransportRouter::RouteInfo::BusItem>(item)) {
+                    bus_items.push_back(get<TransportRouter::RouteInfo::BusItem>(item));
+                }
+            }
+            dict["map"] = Json::Node(EscapeCharacters(db.RenderRoute(bus_items)));
         }
 
         return dict;

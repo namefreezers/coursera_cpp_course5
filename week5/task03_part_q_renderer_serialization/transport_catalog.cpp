@@ -63,6 +63,8 @@ TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serial
     }
 
     router_ = make_unique<TransportRouter>(serialization_base.router());
+
+    map_renderer_ = MapRenderer(serialization_base.map_renderer());
 }
 
 const TransportCatalog::Stop *TransportCatalog::GetStop(const string &name) const {
@@ -110,6 +112,8 @@ Serialization::TransportCatalog TransportCatalog::SerializeBase() const {
     }
 
     *serialization_base.mutable_router() = router_->SerializeRouter();
+
+    *serialization_base.mutable_map_renderer() = map_renderer_.SerializeMapRenderer();
 
     return serialization_base;
 }

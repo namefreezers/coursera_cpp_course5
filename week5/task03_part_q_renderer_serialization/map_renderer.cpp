@@ -242,8 +242,52 @@ PointConverterFlattenCompressRoutes::PointConverterFlattenCompressRoutes(const s
     y_step = max_idx_y == 0 ? 0 : (renderSettings.height - 2 * renderSettings.padding) / static_cast<double>(max_idx_y);
 }
 
+PointConverterFlattenCompressRoutes::PointConverterFlattenCompressRoutes(const Serialization::PointConverterFlattenCompressRoutes &serialization_converter) {
+    padding = serialization_converter.padding();
+    height = serialization_converter.height();
+
+    x_step = serialization_converter.x_step();
+    y_step = serialization_converter.y_step();
+
+    for (int i = 0; i < serialization_converter.x_stop_coord_idx_from_size(); ++i) {
+        x_stop_coord_idx[{serialization_converter.x_stop_coord_idx_from(i).x(), serialization_converter.x_stop_coord_idx_from(i).y()}] = serialization_converter.x_stop_coord_idx_to(i);
+    }
+
+    for (int i = 0; i < serialization_converter.y_stop_coord_idx_from_size(); ++i) {
+        y_stop_coord_idx[{serialization_converter.y_stop_coord_idx_from(i).x(), serialization_converter.y_stop_coord_idx_from(i).y()}] = serialization_converter.y_stop_coord_idx_to(i);
+    }
+}
+
 Svg::Point PointConverterFlattenCompressRoutes::operator()(Sphere::Point to_convert) const {
     return {this->x_stop_coord_idx.at(to_convert) * x_step + padding, height - padding - this->y_stop_coord_idx.at(to_convert) * y_step};
+}
+
+Serialization::PointConverterFlattenCompressRoutes PointConverterFlattenCompressRoutes::SerializeConverter() const {
+    Serialization::PointConverterFlattenCompressRoutes serialization_converter;
+
+    serialization_converter.set_padding(padding);
+    serialization_converter.set_height(height);
+    serialization_converter.set_x_step(x_step);
+    serialization_converter.set_y_step(y_step);
+
+    for (const auto&[p, idx] : x_stop_coord_idx) {
+        Serialization::Point &serialization_cur_point = *serialization_converter.add_x_stop_coord_idx_from();
+        serialization_cur_point.set_x(p.latitude);
+        serialization_cur_point.set_y(p.longitude);
+
+        serialization_converter.add_x_stop_coord_idx_to(idx);
+    }
+
+
+    for (const auto&[p, idx] : y_stop_coord_idx) {
+        Serialization::Point &serialization_cur_point = *serialization_converter.add_y_stop_coord_idx_from();
+        serialization_cur_point.set_x(p.latitude);
+        serialization_cur_point.set_y(p.longitude);
+
+        serialization_converter.add_y_stop_coord_idx_to(idx);
+    }
+
+    return serialization_converter;
 }
 
 
@@ -295,12 +339,34 @@ PointConverterIntermediateStops::PointConverterIntermediateStops(const std::map<
     }
 }
 
+PointConverterIntermediateStops::PointConverterIntermediateStops(const Serialization::PointConverterIntermediateStops &serialization_converter) {
+    for (int i = 0; i < serialization_converter.points_from_size(); ++i) {
+        mapping[{serialization_converter.points_from(i).x(), serialization_converter.points_from(i).y()}] = {serialization_converter.points_to(i).x(), serialization_converter.points_to(i).y()};
+    }
+}
+
 Sphere::Point PointConverterIntermediateStops::operator()(Sphere::Point to_convert) const {
     auto it = mapping.find(to_convert);
     if (it == mapping.end()) {
         return to_convert;  // stop without buses
     }
     return it->second;
+}
+
+Serialization::PointConverterIntermediateStops PointConverterIntermediateStops::SerializeConverter() const {
+    Serialization::PointConverterIntermediateStops serialization_converter;
+
+    for (const auto&[p_from, p_to] : mapping) {
+        Serialization::Point &serialization_point_from = *serialization_converter.add_points_from();
+        serialization_point_from.set_x(p_from.latitude);
+        serialization_point_from.set_y(p_from.longitude);
+
+        Serialization::Point &serialization_point_to = *serialization_converter.add_points_to();
+        serialization_point_to.set_x(p_to.latitude);
+        serialization_point_to.set_y(p_to.longitude);
+    }
+
+    return serialization_converter;
 }
 
 
@@ -320,10 +386,21 @@ PointConverterIntermFlattenCompr::PointConverterIntermFlattenCompr(const std::ma
     conv_flatten_compress = PointConverterFlattenCompressRoutes(new_coords, buses_dict, renderSettings);
 }
 
+PointConverterIntermFlattenCompr::PointConverterIntermFlattenCompr(const Serialization::PointConverterIntermFlattenCompr &serialization_converter) {
+    conv_intermediate = PointConverterIntermediateStops(serialization_converter.conv_intermediate());
+    conv_flatten_compress = PointConverterFlattenCompressRoutes(serialization_converter.conv_flatten_compress());
+}
+
 Svg::Point PointConverterIntermFlattenCompr::operator()(Sphere::Point to_convert) const {
     return conv_flatten_compress(conv_intermediate(to_convert));
 }
 
+Serialization::PointConverterIntermFlattenCompr PointConverterIntermFlattenCompr::SerializeConverter() const {
+    Serialization::PointConverterIntermFlattenCompr serialization_converter;
+    *serialization_converter.mutable_conv_intermediate() = conv_intermediate.SerializeConverter();
+    *serialization_converter.mutable_conv_flatten_compress() = conv_flatten_compress.SerializeConverter();
+    return serialization_converter;
+}
 
 // ===========================================================================================================================================
 // ========================================================= MapRenderer =====================================================================
@@ -346,6 +423,41 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descri
     for (const auto&[bus_name, bus_desc] : buses_for_render_) {
         bus_line_colors[bus_name] = color_idx;
         color_idx = color_idx + 1 == render_settings.color_palette.size() ? 0 : color_idx + 1;
+    }
+}
+
+MapRenderer::MapRenderer(const Serialization::MapRenderer &serialization_renderer) {
+    for (int bus_idx = 0; bus_idx < serialization_renderer.buses_for_render__size(); ++bus_idx) {
+
+        vector<string> stops;
+        stops.reserve(serialization_renderer.buses_for_render_(bus_idx).stops_size());
+        for (int stop_idx = 0; stop_idx < serialization_renderer.buses_for_render_(bus_idx).stops_size(); ++stop_idx) {
+            stops.push_back(serialization_renderer.buses_for_render_(bus_idx).stops(stop_idx));
+        }
+
+        buses_for_render_.insert(buses_for_render_.end(), {
+                serialization_renderer.buses_for_render_(bus_idx).bus_name(), {
+                        move(stops),
+                        serialization_renderer.buses_for_render_(bus_idx).is_roundtrip()
+                }
+        });
+    }
+
+    for (int stop_idx = 0; stop_idx < serialization_renderer.stops_for_render__size(); ++stop_idx) {
+        stops_for_render_.insert(stops_for_render_.end(), {
+                serialization_renderer.stops_for_render_(stop_idx).stop_name(), {
+                        serialization_renderer.stops_for_render_(stop_idx).latitude(),
+                        serialization_renderer.stops_for_render_(stop_idx).longitude()
+                }
+        });
+    }
+
+    render_settings = RenderSettings(serialization_renderer.render_settings());
+
+    converter = PointConverterIntermFlattenCompr(serialization_renderer.converter());
+
+    for (int idx = 0; idx < serialization_renderer.bus_line_colors_size(); ++idx) {
+        bus_line_colors[serialization_renderer.bus_line_colors(idx).bus_name()] = serialization_renderer.bus_line_colors(idx).color_idx();
     }
 }
 
@@ -414,6 +526,42 @@ std::string MapRenderer::RenderRoute(const std::vector<TransportRouter::RouteInf
     doc.Render(ss);
     return ss.str();
 }
+
+Serialization::MapRenderer MapRenderer::SerializeMapRenderer() const {
+    Serialization::MapRenderer serialization_renderer;
+
+    for (const auto&[bus_name, bus_desc] : buses_for_render_) {
+        Serialization::BusDescForRender &serialization_bus_desc = *serialization_renderer.add_buses_for_render_();
+
+        serialization_bus_desc.set_bus_name(bus_name);
+        for (const auto &stop_name : bus_desc.stops) {
+            serialization_bus_desc.add_stops(stop_name);
+        }
+        serialization_bus_desc.set_is_roundtrip(bus_desc.is_roundtrip);
+    }
+
+    for (const auto&[stop_name, stop_desc] : stops_for_render_) {
+        Serialization::StopDescForRender &serialization_stop_desc = *serialization_renderer.add_stops_for_render_();
+
+        serialization_stop_desc.set_stop_name(stop_name);
+        serialization_stop_desc.set_latitude(stop_desc.latitude);
+        serialization_stop_desc.set_longitude(stop_desc.longitude);
+    }
+
+    *serialization_renderer.mutable_render_settings() = render_settings.SerializeRenderSettings();
+
+    *serialization_renderer.mutable_converter() = converter.SerializeConverter();
+
+    for (const auto&[bus_name, color_idx] : bus_line_colors) {
+        Serialization::BusLineColorEntry &serialization_bus_line_color_entry = *serialization_renderer.add_bus_line_colors();
+
+        serialization_bus_line_color_entry.set_bus_name(bus_name);
+        serialization_bus_line_color_entry.set_color_idx(color_idx);
+    }
+
+    return serialization_renderer;
+}
+
 
 void MapRenderer::DrawBusLines(Svg::Document &doc) const {
     for (const auto&[bus_name, bus_desc] : buses_for_render_) {

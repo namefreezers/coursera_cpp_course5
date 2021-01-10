@@ -48,7 +48,10 @@ TransportRouter::TransportRouter(const Serialization::TransportRouter &serializa
 
         switch (serialization_edge_type) {
             case Serialization::EdgeType::BUS:
-                edges_info_.emplace_back(BusEdgeInfo{serialization_router.bus_edge_infos(bus_edge_idx).bus_name(), serialization_router.bus_edge_infos(bus_edge_idx).span_count()});
+                edges_info_.emplace_back(BusEdgeInfo{serialization_router.bus_edge_infos(bus_edge_idx).bus_name(),
+                                                     serialization_router.bus_edge_infos(bus_edge_idx).span_count(),
+                                                     serialization_router.bus_edge_infos(bus_edge_idx).start_stop_idx(),
+                                                     serialization_router.bus_edge_infos(bus_edge_idx).finish_stop_idx()});
                 bus_edge_idx++;
                 break;
             case Serialization::EdgeType::WAIT:
@@ -194,6 +197,10 @@ Serialization::TransportRouter TransportRouter::SerializeRouter() const {
             Serialization::BusEdgeInfo serialization_bus_edge_info;
             serialization_bus_edge_info.set_bus_name(get<BusEdgeInfo>(edge_info).bus_name);
             serialization_bus_edge_info.set_span_count(get<BusEdgeInfo>(edge_info).span_count);
+
+            serialization_bus_edge_info.set_start_stop_idx(get<BusEdgeInfo>(edge_info).start_stop_idx);
+            serialization_bus_edge_info.set_finish_stop_idx(get<BusEdgeInfo>(edge_info).finish_stop_idx);
+
             *serialization_router.add_bus_edge_infos() = serialization_bus_edge_info;
         } else {
             serialization_router.add_edge_types(Serialization::EdgeType::WAIT);
