@@ -169,7 +169,7 @@ namespace Svg {
             svg_objects.emplace_back(std::move(svg_object));
         }
 
-        void Render(std::ostream &out);
+        void Render(std::ostream &out) const;
 
     private:
         std::vector<std::variant<Circle, Polyline, Text, Rect>> svg_objects;

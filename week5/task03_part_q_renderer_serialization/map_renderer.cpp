@@ -424,6 +424,8 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict &stops_dict, const Descri
         bus_line_colors[bus_name] = color_idx;
         color_idx = color_idx + 1 == render_settings.color_palette.size() ? 0 : color_idx + 1;
     }
+
+    built_base_map_document = BuildBaseMap();
 }
 
 MapRenderer::MapRenderer(const Serialization::MapRenderer &serialization_renderer) {
@@ -459,6 +461,8 @@ MapRenderer::MapRenderer(const Serialization::MapRenderer &serialization_rendere
     for (int idx = 0; idx < serialization_renderer.bus_line_colors_size(); ++idx) {
         bus_line_colors[serialization_renderer.bus_line_colors(idx).bus_name()] = serialization_renderer.bus_line_colors(idx).color_idx();
     }
+
+    built_base_map_document = BuildBaseMap();
 }
 
 void MapRenderer::RenderMapInplace(Svg::Document &doc) const {
@@ -477,12 +481,8 @@ void MapRenderer::RenderMapInplace(Svg::Document &doc) const {
 }
 
 std::string MapRenderer::RenderMap() const {
-    Svg::Document doc;
-
-    RenderMapInplace(doc);
-
     stringstream ss;
-    doc.Render(ss);
+    built_base_map_document.Render(ss);
     return ss.str();
 }
 
@@ -514,9 +514,7 @@ void MapRenderer::RenderRouteInplace(Svg::Document &doc, const std::vector<Trans
 
 
 std::string MapRenderer::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
-    Svg::Document doc;
-
-    RenderMapInplace(doc);
+    Svg::Document doc = built_base_map_document;
 
     RenderShadowingRectInplace(doc);
 
@@ -562,6 +560,13 @@ Serialization::MapRenderer MapRenderer::SerializeMapRenderer() const {
     return serialization_renderer;
 }
 
+Svg::Document MapRenderer::BuildBaseMap() const {
+    Svg::Document doc;
+
+    RenderMapInplace(doc);
+
+    return doc;
+}
 
 void MapRenderer::DrawBusLines(Svg::Document &doc) const {
     for (const auto&[bus_name, bus_desc] : buses_for_render_) {

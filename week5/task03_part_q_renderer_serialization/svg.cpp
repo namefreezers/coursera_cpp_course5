@@ -178,7 +178,7 @@ namespace Svg {
 
     // =============================== Document ================================
 
-    void Document::Render(std::ostream &out) {
+    void Document::Render(std::ostream &out) const {
         out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" << std::endl;
         out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">" << std::endl;
         for (const auto &node : svg_objects) {  // TODO: const unique_ptr<SvgObject> &node

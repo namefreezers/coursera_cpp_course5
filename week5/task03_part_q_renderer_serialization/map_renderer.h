@@ -212,6 +212,8 @@ public:
     Serialization::MapRenderer SerializeMapRenderer() const;
 
 private:
+    Svg::Document BuildBaseMap() const;
+
     void RenderMapInplace(Svg::Document &doc) const;
 
     void RenderShadowingRectInplace(Svg::Document &doc) const;
@@ -262,4 +264,6 @@ private:
     RenderSettings render_settings;
     PointConverterIntermFlattenCompr converter;
     std::unordered_map<std::string, int> bus_line_colors;
+
+    Svg::Document built_base_map_document;
 };
