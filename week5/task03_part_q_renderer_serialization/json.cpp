@@ -96,7 +96,17 @@ namespace Json {
 
     template<>
     void PrintValue<string>(const string &value, ostream &output) {
-        output << '"' << value << '"';
+        output << '"';
+        for (const char c : value) {
+            if (c == '"' || c == '\\') {
+                output << '\\' << c;
+            } else if (c == '\n') {
+                output << ' ';
+            } else {
+                output << c;
+            }
+        }
+        output << '"';
     }
 
     template<>

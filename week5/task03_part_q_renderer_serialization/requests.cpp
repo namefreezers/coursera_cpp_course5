@@ -58,28 +58,6 @@ namespace Requests {
         }
     };
 
-    string EscapeCharacters(string str) {
-        size_t start_pos = 0;
-        while((start_pos = str.find('\\', start_pos)) != std::string::npos) {
-            str.replace(start_pos, 1, "\\\\");
-            start_pos += 2; // In case 'to' contains 'from', like replacing 'x' with 'yx'
-        }
-
-        start_pos = 0;
-        while((start_pos = str.find('"', start_pos)) != std::string::npos) {
-            str.replace(start_pos, 1, "\\\"");
-            start_pos += 2; // In case 'to' contains 'from', like replacing 'x' with 'yx'
-        }
-
-        start_pos = 0;
-        while((start_pos = str.find('\n', start_pos)) != std::string::npos) {
-            str.replace(start_pos, 1, " ");
-            start_pos += 1; // In case 'to' contains 'from', like replacing 'x' with 'yx'
-        }
-
-        return str;
-    };
-
     Json::Dict Route::Process(const TransportCatalog &db) const {
         Json::Dict dict;
         const auto route = db.FindRoute(stop_from, stop_to);
@@ -102,7 +80,7 @@ namespace Requests {
                     bus_items.push_back(get<TransportRouter::RouteInfo::BusItem>(item));
                 }
             }
-            dict["map"] = Json::Node(EscapeCharacters(db.RenderRoute(bus_items)));
+            dict["map"] = Json::Node(db.RenderRoute(bus_items));
         }
 
         return dict;
@@ -110,7 +88,7 @@ namespace Requests {
 
     Json::Dict Map::Process(const TransportCatalog &db) const {
         Json::Dict dict;
-        dict["map"] = Json::Node(EscapeCharacters(db.RenderMap()));
+        dict["map"] = Json::Node(db.RenderMap());
         return dict;
     }
 
