@@ -8,7 +8,8 @@
 
 using namespace std;
 
-TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json) {
+TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json,
+                                   const Json::Dict &render_settings_json, const Json::Dict &yellow_pages_json) {
     auto stops_end = partition(begin(data), end(data), [](const auto &item) {
         return holds_alternative<Descriptions::Stop>(item);
     });
@@ -39,9 +40,11 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
 
     map_renderer_ = MapRenderer(stops_dict, buses_dict, render_settings_json);
     router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
+
+    yellow_pages_ = YellowPages(yellow_pages_json);
 }
 
-TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serialization_base) {
+TransportCatalog::TransportCatalog(const Serialization::TransportCatalog &serialization_base) {
     for (int i = 0; i < serialization_base.stops_size(); ++i) {
         const Serialization::Stop &cur_serialization_stop = serialization_base.stops(i);
 

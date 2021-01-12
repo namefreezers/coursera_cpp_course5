@@ -28,7 +28,8 @@ int main(int argc, const char *argv[]) {
         const TransportCatalog db(
                 Descriptions::ReadDescriptions(input_map.at("base_requests").AsArray()),
                 input_map.at("routing_settings").AsMap(),
-                input_map.at("render_settings").AsMap()
+                input_map.at("render_settings").AsMap(),
+                input_map.at("yellow_pages").AsMap()
         );
 
         // Save DB

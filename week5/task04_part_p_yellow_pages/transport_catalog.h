@@ -6,6 +6,7 @@
 #include "svg.h"
 #include "transport_router.h"
 #include "utils.h"
+#include "yellow_pages.h"
 
 #include "transport_catalog.pb.h"
 
@@ -35,7 +36,7 @@ private:
     using Stop = Responses::Stop;
 
 public:
-    TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json);
+    TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json, const Json::Dict &yellow_pages_json);
 
     TransportCatalog(const Serialization::TransportCatalog& serialization_base);
 
@@ -68,4 +69,6 @@ private:
 
     MapRenderer map_renderer_;
     std::unique_ptr<TransportRouter> router_;
+
+    YellowPages yellow_pages_;
 };
