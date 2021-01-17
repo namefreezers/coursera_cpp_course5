@@ -1,15 +1,14 @@
 #pragma once
 
-#include <cstdint>
-#include <iostream>
+#include <initializer_list>
 #include <optional>
 #include <sstream>
-#include <string>
-#include <utility>
+#include <vector>
+
+#include "transport_catalog.pb.h"
 
 #include "json.h"
 
-#include "transport_catalog.pb.h"
 
 namespace Svg {
     struct Point {

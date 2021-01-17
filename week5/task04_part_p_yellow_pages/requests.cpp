@@ -1,7 +1,4 @@
 #include "requests.h"
-#include "transport_router.h"
-
-#include <vector>
 
 using namespace std;
 
@@ -86,13 +83,23 @@ namespace Requests {
         return dict;
     }
 
+    Json::Dict FindCompanies::Process(const TransportCatalog &db) const {
+        vector<Json::Node> company_names_array;
+        for (const auto found_company_ptr : db.SearchCompanies({&names_constraint_, &phones_constraint_, &urls_constraint_, &rubrics_constraint_})) {
+            company_names_array.emplace_back(found_company_ptr->get_main_name());
+        }
+        return {
+                {"companies", move(company_names_array)}
+        };
+    }
+
     Json::Dict Map::Process(const TransportCatalog &db) const {
         Json::Dict dict;
         dict["map"] = Json::Node(db.RenderMap());
         return dict;
     }
 
-    variant<Stop, Bus, Route, Map> Read(const Json::Dict &attrs) {
+    variant<Stop, Bus, Route, FindCompanies, Map> Read(const Json::Dict &attrs, const std::unordered_map<std::string, uint64_t> &rubric_ids_dict) {
         const string &type = attrs.at("type").AsString();
         if (type == "Bus") {
             return Bus{attrs.at("name").AsString()};
@@ -100,6 +107,14 @@ namespace Requests {
             return Stop{attrs.at("name").AsString()};
         } else if (type == "Route") {
             return Route{attrs.at("from").AsString(), attrs.at("to").AsString()};
+        } else if (type == "FindCompanies") {
+            return FindCompanies(
+                    attrs.count("names") ? attrs.at("names").AsArray() : vector<Json::Node>(),
+                    attrs.count("phones") ? attrs.at("phones").AsArray() : vector<Json::Node>(),
+                    attrs.count("urls") ? attrs.at("urls").AsArray() : vector<Json::Node>(),
+                    attrs.count("rubrics") ? attrs.at("rubrics").AsArray() : vector<Json::Node>(),
+                    rubric_ids_dict
+            );
         } else {
             return Map{};
         }
@@ -112,11 +127,10 @@ namespace Requests {
             Json::Dict dict = visit([&db](const auto &request) {
                                         return request.Process(db);
                                     },
-                                    Requests::Read(request_node.AsMap()));
+                                    Requests::Read(request_node.AsMap(), db.get_rubric_ids_dict()));
             dict["request_id"] = Json::Node(request_node.AsMap().at("id").AsInt());
             responses.push_back(Json::Node(dict));
         }
         return responses;
     }
-
 }

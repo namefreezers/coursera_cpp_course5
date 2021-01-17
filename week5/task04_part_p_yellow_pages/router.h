@@ -1,15 +1,5 @@
 #pragma once
 
-#include "graph.h"
-
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <iterator>
-#include <optional>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
 namespace Graph {
 

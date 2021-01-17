@@ -1,8 +1,5 @@
 #include "map_renderer.h"
 
-#include <algorithm>
-#include <functional>
-#include <unordered_set>
 
 using namespace std;
 

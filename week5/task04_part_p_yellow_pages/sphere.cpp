@@ -1,5 +1,7 @@
 #include "sphere.h"
 
+#include <cmath>
+
 using namespace std;
 
 namespace Sphere {
