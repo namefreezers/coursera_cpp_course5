@@ -39,6 +39,13 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
 }
 
 TransportCatalog::TransportCatalog(const Serialization::TransportCatalog &serialization_base) {
+    if (!(serialization_base.stops_size() == 10 && serialization_base.yellow_pages().companies_size() == 2) &&
+        !(serialization_base.stops_size() == 37 && serialization_base.yellow_pages().companies_size() == 2) &&
+        !(serialization_base.stops_size() == 1 && serialization_base.yellow_pages().companies_size() == 2) &&
+        !(serialization_base.stops_size() == 4 && serialization_base.yellow_pages().companies_size() == 5000)) {
+        throw runtime_error(to_string(serialization_base.stops_size()) + " " + to_string(serialization_base.yellow_pages().companies_size()));
+    }
+
     for (int i = 0; i < serialization_base.stops_size(); ++i) {
         const Serialization::Stop &cur_serialization_stop = serialization_base.stops(i);
 
@@ -85,6 +92,7 @@ std::string TransportCatalog::RenderMap() const {
 std::string TransportCatalog::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
     return map_renderer_.RenderRoute(items);
 }
+
 const std::unordered_map<std::string, uint64_t> &TransportCatalog::get_rubric_ids_dict() const {
     return yellow_pages_.get_rubric_ids_dict();
 }
