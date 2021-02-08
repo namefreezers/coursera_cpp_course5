@@ -37,6 +37,6 @@ protobuf_generate_cpp(
 
 
 add_executable(task04_part_p_yellow_pages ${PROTO_SRCS} ${PROTO_HDRS} descriptions.cpp json.cpp main.cpp map_renderer.cpp requests.cpp serialization.cpp
-        sphere.cpp svg.cpp transport_catalog.cpp transport_router.cpp utils.cpp)
+        sphere.cpp svg.cpp transport_catalog.cpp transport_router.cpp utils.cpp yellow_pages.cpp yellow_pages_search.cpp)
 
 target_link_libraries(task04_part_p_yellow_pages ${Protobuf_LIBRARIES})

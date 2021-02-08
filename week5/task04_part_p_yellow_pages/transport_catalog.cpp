@@ -1,14 +1,9 @@
-#include "map_renderer.h"
-#include "svg.h"
 #include "transport_catalog.h"
-
-#include <algorithm>
-#include <functional>
-#include <sstream>
 
 using namespace std;
 
-TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json) {
+TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json,
+                                   const Json::Dict &render_settings_json, const Json::Dict &yellow_pages_json) {
     auto stops_end = partition(begin(data), end(data), [](const auto &item) {
         return holds_alternative<Descriptions::Stop>(item);
     });
@@ -39,9 +34,12 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
 
     map_renderer_ = MapRenderer(stops_dict, buses_dict, render_settings_json);
     router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
+
+    yellow_pages_ = YellowPagesDatabase::YellowPagesDb(yellow_pages_json);
 }
 
-TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serialization_base) {
+TransportCatalog::TransportCatalog(const Serialization::TransportCatalog &serialization_base) {
+
     for (int i = 0; i < serialization_base.stops_size(); ++i) {
         const Serialization::Stop &cur_serialization_stop = serialization_base.stops(i);
 
@@ -65,6 +63,8 @@ TransportCatalog::TransportCatalog(const Serialization::TransportCatalog& serial
     router_ = make_unique<TransportRouter>(serialization_base.router());
 
     map_renderer_ = MapRenderer(serialization_base.map_renderer());
+
+    yellow_pages_ = YellowPagesDatabase::YellowPagesDb(serialization_base.yellow_pages());
 }
 
 const TransportCatalog::Stop *TransportCatalog::GetStop(const string &name) const {
@@ -85,6 +85,14 @@ std::string TransportCatalog::RenderMap() const {
 
 std::string TransportCatalog::RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const {
     return map_renderer_.RenderRoute(items);
+}
+
+const std::unordered_map<std::string, uint64_t> &TransportCatalog::get_rubric_ids_dict() const {
+    return yellow_pages_.get_rubric_ids_dict();
+}
+
+std::vector<const YellowPagesDatabase::Company *> TransportCatalog::SearchCompanies(const array<const YellowPagesSearch::CompanyConstraint *, 4> &companies_constraints) const {
+    return yellow_pages_.SearchCompanies(companies_constraints);
 }
 
 Serialization::TransportCatalog TransportCatalog::SerializeBase() const {
@@ -115,6 +123,8 @@ Serialization::TransportCatalog TransportCatalog::SerializeBase() const {
 
     *serialization_base.mutable_map_renderer() = map_renderer_.SerializeMapRenderer();
 
+    *serialization_base.mutable_yellow_pages() = yellow_pages_.SerializeYellowPages();
+
     return serialization_base;
 }
 
@@ -141,3 +151,5 @@ double TransportCatalog::ComputeGeoRouteDistance(
     }
     return result;
 }
+
+

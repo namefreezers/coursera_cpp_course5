@@ -1,11 +1,10 @@
 #pragma once
 
-#include "json.h"
-#include "transport_catalog.h"
-
 #include <string>
-#include <variant>
 
+#include "transport_catalog.h"
+#include "json.h"
+#include "yellow_pages_search.h"
 
 namespace Requests {
     struct Stop {
@@ -27,11 +26,30 @@ namespace Requests {
         Json::Dict Process(const TransportCatalog &db) const;
     };
 
+    struct FindCompanies {
+        FindCompanies(const std::vector<Json::Node> &names_json,
+                      const std::vector<Json::Node> &phones_json,
+                      const std::vector<Json::Node> &urls_json,
+                      const std::vector<Json::Node> &rubrics_json,
+                      const std::unordered_map<std::string, uint64_t> &rubric_ids_dict) : names_constraint_(names_json),
+                                                                                          phones_constraint_(phones_json),
+                                                                                          urls_constraint_(urls_json),
+                                                                                          rubrics_constraint_(rubrics_json, rubric_ids_dict) {}
+
+        Json::Dict Process(const TransportCatalog &db) const;
+
+    private:
+        YellowPagesSearch::CompanyNameConstraint names_constraint_;
+        YellowPagesSearch::CompanyPhoneConstraint phones_constraint_;
+        YellowPagesSearch::CompanyUrlConstraint urls_constraint_;
+        YellowPagesSearch::CompanyRubricConstraint rubrics_constraint_;
+    };
+
     struct Map {
         Json::Dict Process(const TransportCatalog &db) const;
     };
 
-    std::variant<Stop, Bus, Route, Map> Read(const Json::Dict &attrs);
+    std::variant<Stop, Bus, Route, FindCompanies, Map> Read(const Json::Dict &attrs);
 
     std::vector<Json::Node> ProcessAll(const TransportCatalog &db, const std::vector<Json::Node> &requests);
 }

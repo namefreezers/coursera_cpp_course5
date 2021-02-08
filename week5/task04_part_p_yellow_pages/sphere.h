@@ -1,8 +1,6 @@
 #pragma once
 
-#include <cmath>
-#include <functional>
-
+#include "functional"
 
 namespace Sphere {
     double ConvertDegreesToRadians(double degrees);
@@ -20,7 +18,7 @@ namespace Sphere {
 
     struct PointHash
     {
-        std::size_t operator() (const Point &point) const
+        size_t operator() (const Point &point) const
         {
             return std::hash<double>()(point.latitude) ^ std::hash<double>()(point.longitude);
         }

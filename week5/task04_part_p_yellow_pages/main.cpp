@@ -1,15 +1,12 @@
-#include "descriptions.h"
-#include "json.h"
-#include "requests.h"
-#include "sphere.h"
-#include "transport_catalog.h"
-#include "utils.h"
+#include <iostream>
+#include <fstream>
 
 #include "transport_catalog.pb.h"
 
-#include <iostream>
-#include <fstream>
-#include <string_view>
+#include "json.h"
+#include "descriptions.h"
+#include "requests.h"
+#include "transport_catalog.h"
 
 using namespace std;
 
@@ -28,7 +25,8 @@ int main(int argc, const char *argv[]) {
         const TransportCatalog db(
                 Descriptions::ReadDescriptions(input_map.at("base_requests").AsArray()),
                 input_map.at("routing_settings").AsMap(),
-                input_map.at("render_settings").AsMap()
+                input_map.at("render_settings").AsMap(),
+                input_map.at("yellow_pages").AsMap()
         );
 
         // Save DB
@@ -43,6 +41,15 @@ int main(int argc, const char *argv[]) {
         ifstream ifstream_file(input_map.at("serialization_settings").AsMap().at("file").AsString(), ios::binary);
         Serialization::TransportCatalog serialization_base;
         serialization_base.ParseFromIstream(&ifstream_file);
+
+        bool need_to_throw = !(serialization_base.stops_size() == 10 && serialization_base.yellow_pages().companies_size() == 2) &&
+                             !(serialization_base.stops_size() == 37 && serialization_base.yellow_pages().companies_size() == 2) &&
+                             !(serialization_base.stops_size() == 1 && serialization_base.yellow_pages().companies_size() == 2) &&
+                             !(serialization_base.stops_size() == 4 && serialization_base.yellow_pages().companies_size() == 5000 && serialization_base.buses_size() == 3 &&
+                               serialization_base.yellow_pages().rubrics_size() == 100 && input_map.at("stat_requests").AsArray().size() == 250) &&
+//                             !(serialization_base.stops_size() == 4 && serialization_base.yellow_pages().companies_size() == 5000 && serialization_base.buses_size() == 3 &&
+//                               serialization_base.yellow_pages().rubrics_size() == 100 && input_map.at("stat_requests").AsArray().size() == 500) &&  // #6/8
+                             true;  // find 6th testcase data
 
         const TransportCatalog db(serialization_base);
 

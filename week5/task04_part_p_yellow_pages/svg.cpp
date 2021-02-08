@@ -1,11 +1,3 @@
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <sstream>
-#include <string>
-#include <variant>
-#include <vector>
-
 #include "svg.h"
 
 using namespace std;

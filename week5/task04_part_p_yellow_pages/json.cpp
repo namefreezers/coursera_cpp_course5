@@ -1,5 +1,7 @@
 #include "json.h"
 
+#include <iostream>
+
 using namespace std;
 
 namespace Json {

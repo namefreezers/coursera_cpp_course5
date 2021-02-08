@@ -1,10 +1,12 @@
 #pragma once
 
+#include "transport_catalog.pb.h"
+
 #include "descriptions.h"
+#include "json.h"
+#include "sphere.h"
 #include "svg.h"
 #include "transport_router.h"
-
-#include "transport_catalog.pb.h"
 
 struct RenderSettings {
     RenderSettings();

@@ -1,20 +1,17 @@
 #pragma once
 
-#include "descriptions.h"
-#include "json.h"
-#include "map_renderer.h"
-#include "svg.h"
-#include "transport_router.h"
-#include "utils.h"
-
-#include "transport_catalog.pb.h"
-
+#include <array>
 #include <optional>
 #include <set>
 #include <string>
-#include <unordered_map>
-#include <variant>
 #include <vector>
+
+#include "transport_catalog.pb.h"
+
+#include "descriptions.h"
+#include "map_renderer.h"
+#include "transport_router.h"
+#include "yellow_pages.h"
 
 namespace Responses {
     struct Stop {
@@ -35,9 +32,9 @@ private:
     using Stop = Responses::Stop;
 
 public:
-    TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json);
+    TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict &routing_settings_json, const Json::Dict &render_settings_json, const Json::Dict &yellow_pages_json);
 
-    TransportCatalog(const Serialization::TransportCatalog& serialization_base);
+    TransportCatalog(const Serialization::TransportCatalog &serialization_base);
 
     const Stop *GetStop(const std::string &name) const;
 
@@ -47,7 +44,11 @@ public:
 
     std::string RenderMap() const;
 
-    std::string RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem>& items) const;
+    std::string RenderRoute(const std::vector<TransportRouter::RouteInfo::BusItem> &items) const;
+
+    const std::unordered_map<std::string, uint64_t> &get_rubric_ids_dict() const;
+
+    std::vector<const YellowPagesDatabase::Company *> SearchCompanies(const std::array<const YellowPagesSearch::CompanyConstraint *, 4> &companies_constraints) const;
 
     Serialization::TransportCatalog SerializeBase() const;
 
@@ -68,4 +69,6 @@ private:
 
     MapRenderer map_renderer_;
     std::unique_ptr<TransportRouter> router_;
+
+    YellowPagesDatabase::YellowPagesDb yellow_pages_;
 };
